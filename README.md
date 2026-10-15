@@ -81,6 +81,14 @@ PUBLIC_URL=http://200.19.137.16:8000 bash scripts/diagnose_ubuntu_environment.sh
 
 O diagnóstico verifica o sistema, ferramentas, `.venv`, imports Python, Docker/PostgreSQL, migrations, serviço systemd, porta 8000, health check, OpenAPI e configuração do Apache.
 
+Para corrigir o serviço da API após uma configuração incorreta:
+
+```bash
+bash scripts/fix_ubuntu_environment.sh
+```
+
+Esse script instala uma unidade `systemd` sem `--root-path`, reinicia a API e valida health/OpenAPI. Ele não modifica VirtualHosts, certificados, firewall nem executa migrations automaticamente.
+
 ## Contexto de identidade temporário
 
 Enquanto o contrato AUTH-01 não for fechado com os demais projetos, o ambiente `local`/`test` usa IDs fixos configurados por `LOCAL_TENANT_ID` e `LOCAL_ACTOR_ID`. Esses valores não chegam pelo payload da API.
