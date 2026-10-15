@@ -67,6 +67,20 @@ Execute `--install` como usuário normal com `sudo`. O script instala Docker/Com
 
 Para preservar o site existente, mantenha a API vinculada a `127.0.0.1` até configurar e revisar um proxy Apache. O modo de identidade local é apenas para desenvolvimento/homologação controlada; não exponha uma instância sem autenticação a usuários externos. Upload e processamento de imagens também dependem de um bucket S3 compatível configurado.
 
+Para diagnosticar o servidor sem alterar serviços ou configurações:
+
+```bash
+bash scripts/diagnose_ubuntu_environment.sh
+```
+
+Para testar também um endereço externo, informe a URL sem exibir credenciais:
+
+```bash
+PUBLIC_URL=http://200.19.137.16:8000 bash scripts/diagnose_ubuntu_environment.sh
+```
+
+O diagnóstico verifica o sistema, ferramentas, `.venv`, imports Python, Docker/PostgreSQL, migrations, serviço systemd, porta 8000, health check, OpenAPI e configuração do Apache.
+
 ## Contexto de identidade temporário
 
 Enquanto o contrato AUTH-01 não for fechado com os demais projetos, o ambiente `local`/`test` usa IDs fixos configurados por `LOCAL_TENANT_ID` e `LOCAL_ACTOR_ID`. Esses valores não chegam pelo payload da API.
