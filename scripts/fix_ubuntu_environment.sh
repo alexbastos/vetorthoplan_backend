@@ -86,15 +86,22 @@ else
 fi
 
 if command -v curl >/dev/null 2>&1; then
-  live_status="$(curl --silent --show-error --connect-timeout 5 --max-time 10 \
-    --output /tmp/vetorthoplan-fix-live.$$ --write-out '%{http_code}' \
-    "http://127.0.0.1:$API_PORT/health/live" || true)"
+  live_status="000"
+  for attempt in {1..15}; do
+    live_status="$(curl --silent --show-error --connect-timeout 2 --max-time 5 \
+      --output /tmp/vetorthoplan-fix-live.$$ --write-out '%{http_code}' \
+      "http://127.0.0.1:$API_PORT/health/live" || true)"
+    [[ "$live_status" == 200 ]] && break
+    sleep 1
+  done
   if [[ "$live_status" == 200 ]]; then
     printf '[OK] health check respondeu HTTP 200\n'
     cat /tmp/vetorthoplan-fix-live.$$
     printf '\n'
   else
     printf '[FALHA] health check respondeu HTTP %s\n' "${live_status:-sem resposta}" >&2
+    sudo systemctl status "$SERVICE_NAME" --no-pager -l || true
+    sudo journalctl -u "$SERVICE_NAME" --no-pager -n 40 || true
     exit 1
   fi
   rm -f /tmp/vetorthoplan-fix-live.$$
