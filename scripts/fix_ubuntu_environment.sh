@@ -106,10 +106,10 @@ fi
 
 printf '\nDocker:\n'
 if command -v docker >/dev/null 2>&1; then
+  sudo systemctl enable docker >/dev/null 2>&1 || true
+  sudo systemctl start docker >/dev/null 2>&1 || true
   if sudo docker info >/dev/null 2>&1; then
     printf '[OK] Docker acessível via sudo\n'
-    sudo systemctl enable docker >/dev/null 2>&1 || true
-    sudo systemctl start docker >/dev/null 2>&1 || true
   else
     printf '[ATENÇÃO] Docker instalado, mas o daemon não está acessível\n'
     printf 'Verifique: sudo systemctl status docker\n'
