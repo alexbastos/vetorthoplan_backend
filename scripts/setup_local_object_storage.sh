@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Provision a persistent, localhost-only S3-compatible MinIO for development.
+# Provision a persistent, localhost-only S3-compatible RustFS for development.
 # This script intentionally leaves Apache, firewall rules, and DNS unchanged.
 
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+VENV_DIR="$PROJECT_DIR/.venv"
 ENV_FILE="$PROJECT_DIR/.env"
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
 SERVICE_USER="${SUDO_USER:-${USER}}"
@@ -14,7 +15,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 Uso:
   bash scripts/setup_local_object_storage.sh
 
-Prepara MinIO local em Docker, cria o bucket e um usuário de aplicação,
+Prepara RustFS local em Docker e cria o bucket de aplicação,
 configura o .env para API/worker e reinicia os serviços systemd existentes.
 Execute como usuário normal com sudo. O serviço fica limitado a 127.0.0.1.
 EOF
@@ -88,7 +89,7 @@ fi
 
 set_env_value STORAGE_BUCKET "$STORAGE_BUCKET"
 set_env_value STORAGE_REGION "us-east-1"
-set_env_value STORAGE_ENDPOINT_URL "http://127.0.0.1:4566"
+set_env_value STORAGE_ENDPOINT_URL "http://127.0.0.1:9000"
 set_env_value AWS_ACCESS_KEY_ID "$AWS_ACCESS_KEY_ID"
 set_env_value AWS_SECRET_ACCESS_KEY "$AWS_SECRET_ACCESS_KEY"
 chmod 600 "$ENV_FILE"
@@ -101,25 +102,52 @@ compose() {
   fi
 }
 
-printf 'Subindo LocalStack S3 em 127.0.0.1:4566 (dados persistentes no volume Docker)...\n'
-compose up -d localstack
+printf 'Subindo RustFS S3 em 127.0.0.1:9000 (dados persistentes no volume Docker)...\n'
+compose up -d rustfs
 
 ready=0
 for _ in $(seq 1 30); do
-  if curl --silent --fail --max-time 2 http://127.0.0.1:4566/_localstack/health >/dev/null; then
+  if curl --silent --fail --max-time 2 http://127.0.0.1:9000/health/ready >/dev/null; then
     ready=1
     break
   fi
   sleep 2
 done
 if [[ "$ready" != 1 ]]; then
-  printf 'MinIO não ficou pronto. Logs recentes:\n' >&2
-  compose logs --tail=50 localstack >&2 || true
+  printf 'RustFS não ficou pronto. Logs recentes:\n' >&2
+  compose logs --tail=50 rustfs >&2 || true
   exit 1
 fi
 
-printf 'Criando bucket no LocalStack S3 local...\n'
-compose exec -T localstack awslocal s3 mb "s3://$STORAGE_BUCKET" >/dev/null 2>&1 || true
+printf 'Criando bucket no RustFS S3 local...\n'
+if [[ ! -x "$VENV_DIR/bin/python" ]]; then
+  printf 'Python do projeto não encontrado em %s.\n' "$VENV_DIR" >&2
+  exit 1
+fi
+AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+STORAGE_BUCKET="$STORAGE_BUCKET" STORAGE_REGION="$(env_value STORAGE_REGION)" \
+"$VENV_DIR/bin/python" - <<'PY'
+import os
+import boto3
+from botocore.exceptions import ClientError
+
+client = boto3.client(
+    "s3",
+    endpoint_url="http://127.0.0.1:9000",
+    region_name=os.environ.get("STORAGE_REGION") or "us-east-1",
+    aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+    aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+)
+bucket = os.environ["STORAGE_BUCKET"]
+try:
+    client.head_bucket(Bucket=bucket)
+except ClientError as error:
+    code = str(error.response.get("Error", {}).get("Code", ""))
+    if code not in {"404", "NoSuchBucket", "NotFound"}:
+        raise
+    client.create_bucket(Bucket=bucket)
+print(bucket)
+PY
 
 restart_if_installed() {
   local service="$1"
@@ -142,6 +170,6 @@ restart_if_installed vetorthoplan-worker.service
 
 printf '\nStorage local configurado.\n'
 printf 'Bucket: %s\n' "$STORAGE_BUCKET"
-printf 'Endpoint interno: http://127.0.0.1:4566\n'
+printf 'Endpoint interno: http://127.0.0.1:9000\n'
 printf 'As credenciais foram gravadas em %s com permissão 600; não foram exibidas.\n' "$ENV_FILE"
 printf 'Próximo passo: execute scripts/smoke_image_ingestion.py no próprio servidor.\n'

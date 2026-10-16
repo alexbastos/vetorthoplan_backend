@@ -15,21 +15,18 @@ services:
     volumes:
       - vetorthoplan_postgres_data:/var/lib/postgresql/data
 
-  localstack:
-    image: localstack/localstack:latest
+  rustfs:
+    image: rustfs/rustfs:latest
     environment:
-      SERVICES: s3
-      PERSISTENCE: "1"
-      DATA_DIR: /var/lib/localstack/data
-      AWS_DEFAULT_REGION: ${STORAGE_REGION:-us-east-1}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      RUSTFS_ACCESS_KEY: ${AWS_ACCESS_KEY_ID:-test}
+      RUSTFS_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
     ports:
-      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
-      - vetorthoplan_localstack_data:/var/lib/localstack
+      - vetorthoplan_rustfs_data:/data
     restart: unless-stopped
 
 volumes:
   vetorthoplan_postgres_data:
-  vetorthoplan_localstack_data:
+  vetorthoplan_rustfs_data:
