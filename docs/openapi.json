@@ -12,8 +12,8 @@
     },
     "version": "0.8.0",
     "x-git-branch": "master",
-    "x-git-commit": "dc99000bad7c175807ba38b0913890aac925c447",
-    "x-generated-at": "2026-10-16T21:02:25.863909+00:00"
+    "x-git-commit": "35d4f8b06293f873fcb728fbfd9b2e60cc6b7d9a",
+    "x-generated-at": "2026-10-16T23:26:39.917559+00:00"
   },
   "paths": {
     "/health/live": {
@@ -1969,6 +1969,16 @@
               }
             ]
           },
+          "tplo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TploPlanMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "objects": {
             "items": {
               "oneOf": [
@@ -2179,6 +2189,62 @@
           "document"
         ],
         "title": "SaveImagePlanRequest"
+      },
+      "TploPlanMetadata": {
+        "properties": {
+          "laterality": {
+            "type": "string",
+            "enum": [
+              "LEFT",
+              "RIGHT"
+            ],
+            "title": "Laterality"
+          },
+          "current_slope_degrees": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Slope Degrees"
+          },
+          "target_slope_degrees": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Slope Degrees"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "laterality"
+        ],
+        "title": "TploPlanMetadata",
+        "description": "Clinical inputs recorded before automated TPLO calculations are available."
       },
       "ValidationError": {
         "properties": {

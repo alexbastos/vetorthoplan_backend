@@ -42,7 +42,7 @@ class GetImagePlan:
             return ImagePlanView(
                 image_id=image_id,
                 revision=0,
-                document={"schema_version": 1, "calibration": None, "objects": []},
+                document={"schema_version": 1, "calibration": None, "tplo": None, "objects": []},
                 updated_at=None,
             )
         return ImagePlanView(image_id, plan.revision, plan.document, plan.updated_at)

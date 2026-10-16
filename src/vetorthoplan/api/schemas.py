@@ -288,9 +288,19 @@ class PlanTplo(BaseModel):
 PlanObject = Annotated[PlanLine | PlanAngle | PlanCircle | PlanTplo, Field(discriminator="type")]
 
 
+class TploPlanMetadata(BaseModel):
+    """Clinical inputs recorded before automated TPLO calculations are available."""
+
+    laterality: Literal["LEFT", "RIGHT"]
+    current_slope_degrees: float | None = Field(default=None, ge=0, le=90)
+    target_slope_degrees: float | None = Field(default=None, ge=0, le=90)
+    notes: str | None = Field(default=None, max_length=2_000)
+
+
 class PlanDocument(BaseModel):
     schema_version: Literal[1] = 1
     calibration: PlanCalibration | None = None
+    tplo: TploPlanMetadata | None = None
     objects: list[PlanObject] = Field(default_factory=list, max_length=500)
 
 
