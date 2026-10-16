@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import binascii
+import hashlib
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -79,6 +80,21 @@ class S3PresignedPostStorage:
             raise
 
         checksum = self._decode_checksum(response.get("ChecksumSHA256"))
+        if not checksum:
+            # Alguns S3 compatíveis, incluindo versões locais do RustFS, não
+            # devolvem ChecksumSHA256 no HEAD. Calcule o digest do objeto para
+            # manter a mesma validação de integridade do fluxo AWS S3.
+            body_response = await asyncio.to_thread(
+                self._client.get_object,
+                Bucket=self._bucket,
+                Key=upload.object_key,
+            )
+            body = body_response["Body"]
+            try:
+                content = await asyncio.to_thread(body.read)
+            finally:
+                body.close()
+            checksum = hashlib.sha256(content).hexdigest()
         upload_id = self._parse_uuid(response.get("Metadata", {}).get("upload-id"))
         return StoredUploadObject(
             size_bytes=int(response["ContentLength"]),
