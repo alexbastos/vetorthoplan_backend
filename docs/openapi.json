@@ -10,7 +10,10 @@
     "license": {
       "name": "Proprietary"
     },
-    "version": "0.7.0"
+    "version": "0.7.0",
+    "x-git-branch": "master",
+    "x-git-commit": "9088604977636bcabcb0ef61d0f1c191fb44ce23",
+    "x-generated-at": "2026-10-16T11:27:01.857457+00:00"
   },
   "paths": {
     "/health/live": {
