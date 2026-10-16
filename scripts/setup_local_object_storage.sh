@@ -79,22 +79,16 @@ if [[ "$APP_ENV" == "production" || "$APP_ENV" == "staging" ]]; then
   exit 1
 fi
 
-MINIO_ROOT_USER="${MINIO_ROOT_USER:-$(env_value MINIO_ROOT_USER)}"
-MINIO_ROOT_USER="${MINIO_ROOT_USER:-minio$(random_hex 6)}"
-MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-$(env_value MINIO_ROOT_PASSWORD)}"
-MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-$(random_hex 24)}"
 AWS_ACCESS_KEY_ID="$(env_value AWS_ACCESS_KEY_ID)"
 AWS_SECRET_ACCESS_KEY="$(env_value AWS_SECRET_ACCESS_KEY)"
 if [[ ! "$AWS_ACCESS_KEY_ID" =~ ^vop[0-9a-f]{16}$ || -z "$AWS_SECRET_ACCESS_KEY" ]]; then
-  AWS_ACCESS_KEY_ID="vop$(random_hex 8)"
-  AWS_SECRET_ACCESS_KEY="$(random_hex 24)"
+  AWS_ACCESS_KEY_ID="test"
+  AWS_SECRET_ACCESS_KEY="test"
 fi
 
 set_env_value STORAGE_BUCKET "$STORAGE_BUCKET"
 set_env_value STORAGE_REGION "us-east-1"
-set_env_value STORAGE_ENDPOINT_URL "http://127.0.0.1:9000"
-set_env_value MINIO_ROOT_USER "$MINIO_ROOT_USER"
-set_env_value MINIO_ROOT_PASSWORD "$MINIO_ROOT_PASSWORD"
+set_env_value STORAGE_ENDPOINT_URL "http://127.0.0.1:4566"
 set_env_value AWS_ACCESS_KEY_ID "$AWS_ACCESS_KEY_ID"
 set_env_value AWS_SECRET_ACCESS_KEY "$AWS_SECRET_ACCESS_KEY"
 chmod 600 "$ENV_FILE"
@@ -107,12 +101,12 @@ compose() {
   fi
 }
 
-printf 'Subindo MinIO em 127.0.0.1:9000 (dados persistentes no volume Docker)...\n'
-compose up -d minio
+printf 'Subindo LocalStack S3 em 127.0.0.1:4566 (dados persistentes no volume Docker)...\n'
+compose up -d localstack
 
 ready=0
 for _ in $(seq 1 30); do
-  if curl --silent --fail --max-time 2 http://127.0.0.1:9000/minio/health/live >/dev/null; then
+  if curl --silent --fail --max-time 2 http://127.0.0.1:4566/_localstack/health >/dev/null; then
     ready=1
     break
   fi
@@ -120,12 +114,12 @@ for _ in $(seq 1 30); do
 done
 if [[ "$ready" != 1 ]]; then
   printf 'MinIO não ficou pronto. Logs recentes:\n' >&2
-  compose logs --tail=50 minio >&2 || true
+  compose logs --tail=50 localstack >&2 || true
   exit 1
 fi
 
-printf 'Criando bucket e usuário de aplicação no MinIO local...\n'
-compose --profile bootstrap run --rm minio-bootstrap
+printf 'Criando bucket no LocalStack S3 local...\n'
+compose exec -T localstack awslocal s3 mb "s3://$STORAGE_BUCKET" >/dev/null 2>&1 || true
 
 restart_if_installed() {
   local service="$1"
@@ -148,7 +142,6 @@ restart_if_installed vetorthoplan-worker.service
 
 printf '\nStorage local configurado.\n'
 printf 'Bucket: %s\n' "$STORAGE_BUCKET"
-printf 'Endpoint interno: http://127.0.0.1:9000\n'
-printf 'Console MinIO local: http://127.0.0.1:9001\n'
+printf 'Endpoint interno: http://127.0.0.1:4566\n'
 printf 'As credenciais foram gravadas em %s com permissão 600; não foram exibidas.\n' "$ENV_FILE"
 printf 'Próximo passo: execute scripts/smoke_image_ingestion.py no próprio servidor.\n'

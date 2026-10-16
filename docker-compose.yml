@@ -15,40 +15,21 @@ services:
     volumes:
       - vetorthoplan_postgres_data:/var/lib/postgresql/data
 
-  minio:
-    image: quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z
-    command: ["server", "/data", "--console-address", ":9001"]
+  localstack:
+    image: localstack/localstack:latest
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
+      SERVICES: s3
+      PERSISTENCE: "1"
+      DATA_DIR: /var/lib/localstack/data
+      AWS_DEFAULT_REGION: ${STORAGE_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      - "127.0.0.1:4566:4566"
     volumes:
-      - vetorthoplan_minio_data:/data
+      - vetorthoplan_localstack_data:/var/lib/localstack
     restart: unless-stopped
-
-  minio-bootstrap:
-    image: docker.io/minio/mc:RELEASE.2025-07-21T05-28-08Z
-    profiles: ["bootstrap"]
-    depends_on:
-      - minio
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
-      STORAGE_BUCKET: ${STORAGE_BUCKET:-vetorthoplan-uploads-local}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-    entrypoint: ["/bin/sh", "-ec"]
-    command:
-      - |
-        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do sleep 2; done
-        mc mb --ignore-existing "local/$$STORAGE_BUCKET"
-        if ! mc admin user info local "$$AWS_ACCESS_KEY_ID" >/dev/null 2>&1; then
-          mc admin user add local "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY"
-        fi
-        mc admin policy attach local readwrite --user "$$AWS_ACCESS_KEY_ID"
 
 volumes:
   vetorthoplan_postgres_data:
-  vetorthoplan_minio_data:
+  vetorthoplan_localstack_data:
