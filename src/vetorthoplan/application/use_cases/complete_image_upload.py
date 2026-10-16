@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import timedelta
 from uuid import UUID
 
 from vetorthoplan.application.context import TenantContext
@@ -33,12 +34,14 @@ class CompleteImageUpload:
         storage: UploadStorage,
         id_generator: IdGenerator,
         clock: Clock,
+        storage_clock_skew_seconds: float = 5.0,
     ) -> None:
         self._repository = repository
         self._job_queue = job_queue
         self._storage = storage
         self._id_generator = id_generator
         self._clock = clock
+        self._storage_clock_skew = timedelta(seconds=storage_clock_skew_seconds)
 
     async def execute(self, upload_id: UUID, context: TenantContext) -> CompletedImageUpload:
         upload = await self._repository.get_by_id(context.tenant_id, upload_id)
@@ -52,7 +55,7 @@ class CompleteImageUpload:
                     raise ImageUploadExpiredError(upload_id)
                 raise ImageUploadObjectInvalidError(upload_id, "object_not_found")
 
-            if stored.uploaded_at < upload.created_at:
+            if stored.uploaded_at < upload.created_at - self._storage_clock_skew:
                 raise ImageUploadObjectInvalidError(upload_id, "uploaded_before_session")
             if stored.size_bytes != upload.size_bytes:
                 raise ImageUploadObjectInvalidError(upload_id, "size_mismatch")

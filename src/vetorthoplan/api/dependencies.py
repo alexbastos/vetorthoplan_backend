@@ -96,6 +96,7 @@ def get_complete_image_upload(
         ),
         id_generator=UuidGenerator(),
         clock=SystemClock(),
+        storage_clock_skew_seconds=settings.storage_clock_skew_seconds,
     )
 
 

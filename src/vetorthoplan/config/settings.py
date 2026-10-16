@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     storage_endpoint_url: str | None = None
     upload_url_expires_seconds: int = Field(default=300, ge=60, le=900)
     preview_url_expires_seconds: int = Field(default=300, ge=60, le=900)
+    storage_clock_skew_seconds: float = Field(default=5.0, ge=0, le=60)
     max_uploads_per_case: int = Field(default=20, ge=1, le=100)
     worker_poll_seconds: float = Field(default=1.0, ge=0.1, le=60)
 
