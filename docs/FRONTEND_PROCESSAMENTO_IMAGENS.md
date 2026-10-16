@@ -1,7 +1,7 @@
 # Frontend — processamento e consulta de imagens
 
 > Escopo: primeiro recorte do IMG-02.  
-> Contrato publicado: OpenAPI `0.6.0`.  
+> Contrato publicado: OpenAPI `0.8.0`.
 > Identidade: adapter local temporário; JWT/RBAC permanecem fora deste incremento.
 
 ![Referência visual para processamento de imagem](frontend/processamento-imagem-v1.png)
@@ -44,7 +44,7 @@ Resposta:
 }
 ```
 
-O frontend deve fazer polling somente enquanto o estado for `QUEUED` ou `PROCESSING`, com intervalo inicial de dois segundos. `SUCCEEDED`, `REJECTED` e `FAILED` são terminais neste contrato.
+O frontend deve fazer polling somente enquanto o estado do job for `QUEUED` ou `PROCESSING`, com intervalo inicial de dois segundos. `SUCCEEDED`, `REJECTED` e `FAILED` são terminais para o job. `FAILED` é um estado do job, não da imagem; o worker também marca a imagem como `REJECTED` com um código seguro. Após reload, `GET /api/v1/cases/{case_id}/images` recupera os estados, sem precisar recuperar o `job_id`. `SUCCEEDED` acompanha imagem `READY`, mas a disponibilidade da prévia continua sendo governada separadamente por `preview_available`.
 
 ## Listar imagens do caso
 

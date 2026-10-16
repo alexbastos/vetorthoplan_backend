@@ -74,6 +74,29 @@ class CaseModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class CaseIdempotencyModel(Base):
+    __tablename__ = "case_idempotency_keys"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "actor_id",
+            "operation",
+            "key_hash",
+            name="uq_case_idempotency_scope",
+        ),
+        Index("ix_case_idempotency_created_at", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    tenant_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    actor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    operation: Mapped[str] = mapped_column(String(64), nullable=False)
+    key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ImageUploadModel(Base):
     __tablename__ = "image_uploads"
     __table_args__ = (

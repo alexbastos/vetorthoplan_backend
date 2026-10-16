@@ -1,6 +1,10 @@
 from uuid import UUID
 
 
+class IdempotencyKeyConflictError(ValueError):
+    """An idempotency key was reused for a different request."""
+
+
 class CaseNotFoundError(LookupError):
     """Raised when a case is not visible in the active tenant."""
 

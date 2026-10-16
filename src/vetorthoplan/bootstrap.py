@@ -11,6 +11,7 @@ from vetorthoplan.api.routes.plans import router as plans_router
 from vetorthoplan.api.schemas import ErrorResponse
 from vetorthoplan.application.errors import (
     CaseNotFoundError,
+    IdempotencyKeyConflictError,
     ImageNotFoundError,
     ImageNotReadyError,
     ImagePreviewUnavailableError,
@@ -28,7 +29,7 @@ from vetorthoplan.domain.imaging import ImagingValidationError
 def create_app() -> FastAPI:
     app = FastAPI(
         title="VetOrthoPlan Backend API",
-        version="0.7.0",
+        version="0.8.0",
         summary="API clínica para planejamento ortopédico veterinário",
         description=(
             "Vertical slices do MVP TPLO: casos, upload e processamento inicial de radiografias. "
@@ -75,6 +76,17 @@ def create_app() -> FastAPI:
             details={"field": exc.field} if exc.field else {},
         )
         return JSONResponse(status_code=422, content=error.model_dump())
+
+    @app.exception_handler(IdempotencyKeyConflictError)
+    async def idempotency_key_conflict_handler(
+        _request: Request,
+        _exc: IdempotencyKeyConflictError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IDEMPOTENCY_KEY_REUSED",
+            message="A chave de idempotência já foi usada com dados diferentes.",
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
 
     @app.exception_handler(ImagingValidationError)
     async def imaging_validation_error_handler(

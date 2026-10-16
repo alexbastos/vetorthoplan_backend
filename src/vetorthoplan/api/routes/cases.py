@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Header, Query, status
 
 from vetorthoplan.api.dependencies import (
     CreateCaseDependency,
@@ -16,8 +16,10 @@ from vetorthoplan.api.schemas import (
     CaseListResponse,
     CaseResponse,
     CreateCaseRequest,
+    CreateCaseValidationErrorResponse,
     CreateImageUploadRequest,
     ErrorResponse,
+    IdempotencyKeyConflictResponse,
     ImageUploadResponse,
     PresignedPostResponse,
 )
@@ -72,6 +74,10 @@ async def list_cases(
     return CaseListResponse(
         items=[CaseListItemResponse.from_domain(case) for case in page.items],
         next_cursor=encode_case_cursor(page.next_cursor),
+        status_counts={
+            case_status: page.status_counts.get(case_status, 0)
+            for case_status in CaseStatus
+        },
     )
 
 
@@ -102,11 +108,17 @@ async def get_case(
     description=(
         "Cria um caso no tenant ativo, inicialmente no estado DRAFT. "
         "No ambiente local, tenant e usuário são fornecidos por um adapter temporário; "
-        "eles nunca são aceitos no corpo da requisição."
+        "eles nunca são aceitos no corpo da requisição. Com Idempotency-Key, repetir a mesma "
+        "operação e o mesmo corpo devolve o caso original. A chave é vinculada ao tenant/ator, "
+        "não expira e não pode ser reutilizada com outro corpo."
     ),
     responses={
+        409: {
+            "model": IdempotencyKeyConflictResponse,
+            "description": "A chave de idempotência foi reutilizada com dados diferentes",
+        },
         422: {
-            "model": ErrorResponse,
+            "model": CreateCaseValidationErrorResponse,
             "description": "Entrada inválida ou violação de regra do caso",
         }
     },
@@ -115,6 +127,15 @@ async def create_case(
     request: CreateCaseRequest,
     context: TenantContextDependency,
     use_case: CreateCaseDependency,
+    idempotency_key: Annotated[
+        str | None,
+        Header(
+            alias="Idempotency-Key",
+            min_length=1,
+            max_length=128,
+            description="Chave estável para repetir esta operação sem criar outro caso",
+        ),
+    ] = None,
 ) -> CaseResponse:
     case = await use_case.execute(
         CreateCaseCommand(
@@ -129,6 +150,7 @@ async def create_case(
             clinical_notes=request.clinical_notes,
         ),
         context,
+        idempotency_key=idempotency_key,
     )
     return CaseResponse.from_domain(case)
 

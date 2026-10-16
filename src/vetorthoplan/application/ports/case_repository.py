@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
@@ -16,10 +16,19 @@ class CaseCursor:
 class CasePage:
     items: tuple[Case, ...]
     next_cursor: CaseCursor | None
+    status_counts: dict[CaseStatus, int] = field(default_factory=dict)
 
 
 class CaseRepository(Protocol):
     async def add(self, case: Case) -> Case: ...
+
+    async def add_idempotently(
+        self,
+        case: Case,
+        *,
+        key_hash: str,
+        request_hash: str,
+    ) -> Case: ...
 
     async def get_by_id(self, tenant_id: UUID, case_id: UUID) -> Case | None: ...
 

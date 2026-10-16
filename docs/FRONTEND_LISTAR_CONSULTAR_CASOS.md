@@ -2,7 +2,7 @@
 
 > Escopo: segundo vertical slice do módulo de casos.  
 > Endpoints: `GET /api/v1/cases` e `GET /api/v1/cases/{case_id}`.  
-> Contrato publicado: OpenAPI `0.6.0`.
+> Contrato publicado: OpenAPI `0.8.0`.
 
 ![Referência visual para lista e detalhe de casos](frontend/casos-listagem-detalhe-v2.png)
 
@@ -73,11 +73,21 @@ GET /api/v1/cases?limit=20&status=DRAFT&search=joelho
       "updated_at": "2026-09-15T12:00:00Z"
     }
   ],
-  "next_cursor": "MjAyNi0wOS0xNVQxMjowMDowMCswMDowMHwwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwNjQ"
+  "next_cursor": "MjAyNi0wOS0xNVQxMjowMDowMCswMDowMHwwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwNjQ",
+  "status_counts": {
+    "DRAFT": 12,
+    "IN_PLANNING": 5,
+    "READY": 8,
+    "ARCHIVED": 2
+  }
 }
 ```
 
 `next_cursor` será `null` quando não houver outra página. O frontend deve tratar o cursor como valor opaco: armazenar e reenviar sem interpretar ou modificar.
+
+`status_counts` contém contagens de todo o tenant ativo, após aplicar `search`, mas ignora `status` e `cursor`. Valores zero são sempre incluídos. O total da aba “Todos” é a soma dos quatro valores.
+
+O cursor é uma chave de continuação stateless baseada em data de criação e ID. Ele não expira nem representa um snapshot: casos criados depois da primeira página não aparecem na navegação em andamento; reinicie a consulta para atualizar. Caso malformado retorna `422 INVALID_CURSOR`. O contrato atual não permite editar o status do caso.
 
 ### Paginação e filtros
 
@@ -142,6 +152,8 @@ Tradução sugerida dos estados:
 | `IN_PLANNING` | Em planejamento |
 | `READY` | Pronto |
 | `ARCHIVED` | Arquivado |
+
+`READY` ainda não tem semântica de negócio ou transição definida no contrato. A interface pode usar o rótulo literal “Pronto”, mas não deve apresentá-lo como “Concluído” ou como conclusão clínica. A API atual não expõe transições de status.
 
 ## 6. Estados obrigatórios
 

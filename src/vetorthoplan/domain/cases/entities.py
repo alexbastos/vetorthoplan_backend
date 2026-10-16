@@ -10,6 +10,12 @@ from vetorthoplan.domain.cases.errors import CaseValidationError
 
 
 class CaseStatus(StrEnum):
+    """Ciclo de vida do caso clínico.
+
+    DRAFT é atribuído na criação. IN_PLANNING e ARCHIVED são rótulos literais.
+    READY ainda não tem transição de negócio definida e não significa conclusão clínica.
+    """
+
     DRAFT = "DRAFT"
     IN_PLANNING = "IN_PLANNING"
     READY = "READY"

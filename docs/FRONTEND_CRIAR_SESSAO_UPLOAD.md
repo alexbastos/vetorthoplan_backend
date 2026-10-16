@@ -2,7 +2,7 @@
 
 > Escopo: primeiro slice do módulo Imaging (`IMG-01`).  
 > Endpoint disponível: `POST /api/v1/cases/{case_id}/image-uploads`.  
-> Contrato publicado: OpenAPI `0.6.0`.  
+> Contrato publicado: OpenAPI `0.8.0`.
 > Referência visual: `docs/frontend/upload-radiografia-v1.png`.
 
 ![Referência visual do upload de radiografia](frontend/upload-radiografia-v1.png)
@@ -59,6 +59,10 @@ Regras publicadas:
 | `sha256` | Digest hexadecimal de 64 caracteres, calculado antes de criar a sessão |
 
 O limite inicial é de 20 sessões não expiradas por caso. A URL expira em cinco minutos por padrão.
+
+A criação da sessão não é idempotente. Se a resposta `201` se perder, crie outra sessão e gere uma nova assinatura; a sessão abandonada continua contando para o limite até expirar. Uma URL expirada não pode ser reutilizada. Após o limite, aguarde a expiração das sessões abandonadas e tente novamente. Depois de um reload, `GET /api/v1/cases/{case_id}/images` é a fonte de recuperação: `PENDING_UPLOAD` indica envio não confirmado e não deve gerar polling contínuo; o usuário pode iniciar uma sessão nova.
+
+O navegador precisa enviar o `POST multipart/form-data` à origem indicada por `upload.url`, incluindo todos os campos assinados e o arquivo por último. Não defina o header `Content-Type` manualmente e não siga redirecionamentos. A infraestrutura de cada ambiente deve permitir a origem exata do frontend e os métodos/headers necessários via CORS; os valores de origem e a resposta de sucesso são configurações do storage por ambiente.
 
 ## 4. Resposta `201 Created`
 

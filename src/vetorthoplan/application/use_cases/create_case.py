@@ -1,6 +1,8 @@
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
 from datetime import date
 from decimal import Decimal
+from hashlib import sha256
 
 from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.ports import CaseRepository, Clock, IdGenerator
@@ -26,7 +28,13 @@ class CreateCase:
         self._id_generator = id_generator
         self._clock = clock
 
-    async def execute(self, command: CreateCaseCommand, context: TenantContext) -> Case:
+    async def execute(
+        self,
+        command: CreateCaseCommand,
+        context: TenantContext,
+        *,
+        idempotency_key: str | None = None,
+    ) -> Case:
         case = Case.create(
             case_id=self._id_generator.new(),
             tenant_id=context.tenant_id,
@@ -42,5 +50,20 @@ class CreateCase:
             clinical_notes=command.clinical_notes,
             now=self._clock.now(),
         )
-        return await self._repository.add(case)
+        if idempotency_key is None:
+            return await self._repository.add(case)
+
+        request_body = {
+            field: str(value) if value is not None else None
+            for field, value in asdict(command).items()
+        }
+        request_hash = sha256(
+            json.dumps(request_body, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        key_hash = sha256(idempotency_key.encode()).hexdigest()
+        return await self._repository.add_idempotently(
+            case,
+            key_hash=key_hash,
+            request_hash=request_hash,
+        )
 

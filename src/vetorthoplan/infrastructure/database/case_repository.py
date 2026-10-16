@@ -1,11 +1,13 @@
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from vetorthoplan.application.errors import IdempotencyKeyConflictError
 from vetorthoplan.application.ports import CaseCursor, CasePage
 from vetorthoplan.domain.cases import BiologicalSex, Case, CaseStatus
-from vetorthoplan.infrastructure.database.models import CaseModel
+from vetorthoplan.infrastructure.database.models import CaseIdempotencyModel, CaseModel
 
 
 class SqlAlchemyCaseRepository:
@@ -34,6 +36,49 @@ class SqlAlchemyCaseRepository:
         await self._session.flush()
         return self._to_domain(model)
 
+    async def add_idempotently(
+        self,
+        case: Case,
+        *,
+        key_hash: str,
+        request_hash: str,
+    ) -> Case:
+        record_id = case.id
+        statement = (
+            pg_insert(CaseIdempotencyModel)
+            .values(
+                id=record_id,
+                tenant_id=case.tenant_id,
+                actor_id=case.created_by,
+                operation="CREATE_CASE",
+                key_hash=key_hash,
+                request_hash=request_hash,
+                resource_id=case.id,
+                created_at=case.created_at,
+            )
+            .on_conflict_do_nothing(constraint="uq_case_idempotency_scope")
+        )
+        result = await self._session.execute(statement)
+        if result.rowcount == 0:
+            existing = await self._session.scalar(
+                select(CaseIdempotencyModel).where(
+                    CaseIdempotencyModel.tenant_id == case.tenant_id,
+                    CaseIdempotencyModel.actor_id == case.created_by,
+                    CaseIdempotencyModel.operation == "CREATE_CASE",
+                    CaseIdempotencyModel.key_hash == key_hash,
+                )
+            )
+            if existing is None:
+                raise RuntimeError("Não foi possível recuperar a chave de idempotência.")
+            if existing.request_hash != request_hash:
+                raise IdempotencyKeyConflictError
+            existing_case = await self.get_by_id(case.tenant_id, existing.resource_id)
+            if existing_case is None:
+                raise RuntimeError("O caso associado à chave de idempotência não existe.")
+            return existing_case
+
+        return await self.add(case)
+
     async def get_by_id(self, tenant_id: UUID, case_id: UUID) -> Case | None:
         statement = select(CaseModel).where(
             CaseModel.tenant_id == tenant_id,
@@ -51,23 +96,37 @@ class SqlAlchemyCaseRepository:
         status: CaseStatus | None,
         search: str | None,
     ) -> CasePage:
-        statement = select(CaseModel).where(CaseModel.tenant_id == tenant_id)
+        filters = [CaseModel.tenant_id == tenant_id]
+        search_filter = None
 
         if status is not None:
-            statement = statement.where(CaseModel.status == status.value)
+            filters.append(CaseModel.status == status.value)
 
         if search is not None:
             escaped_search = self._escape_like(search)
             pattern = f"%{escaped_search}%"
-            statement = statement.where(
-                or_(
-                    CaseModel.title.ilike(pattern, escape="\\"),
-                    CaseModel.animal_name.ilike(pattern, escape="\\"),
-                    CaseModel.species.ilike(pattern, escape="\\"),
-                    CaseModel.breed.ilike(pattern, escape="\\"),
-                )
+            search_filter = or_(
+                CaseModel.title.ilike(pattern, escape="\\"),
+                CaseModel.animal_name.ilike(pattern, escape="\\"),
+                CaseModel.species.ilike(pattern, escape="\\"),
+                CaseModel.breed.ilike(pattern, escape="\\"),
             )
+            filters.append(search_filter)
 
+        count_filters = [CaseModel.tenant_id == tenant_id]
+        if search_filter is not None:
+            count_filters.append(search_filter)
+        count_rows = await self._session.execute(
+            select(CaseModel.status, func.count())
+            .where(*count_filters)
+            .group_by(CaseModel.status)
+        )
+        status_counts = {case_status: 0 for case_status in CaseStatus}
+        status_counts.update(
+            {CaseStatus(raw_status): count for raw_status, count in count_rows.all()}
+        )
+
+        statement = select(CaseModel).where(*filters)
         if cursor is not None:
             statement = statement.where(
                 or_(
@@ -92,7 +151,7 @@ class SqlAlchemyCaseRepository:
             last_model = page_models[-1]
             next_cursor = CaseCursor(created_at=last_model.created_at, case_id=last_model.id)
 
-        return CasePage(items=items, next_cursor=next_cursor)
+        return CasePage(items=items, next_cursor=next_cursor, status_counts=status_counts)
 
     @staticmethod
     def _escape_like(value: str) -> str:

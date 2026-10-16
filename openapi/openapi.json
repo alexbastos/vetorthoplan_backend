@@ -10,10 +10,10 @@
     "license": {
       "name": "Proprietary"
     },
-    "version": "0.7.0",
+    "version": "0.8.0",
     "x-git-branch": "master",
-    "x-git-commit": "9088604977636bcabcb0ef61d0f1c191fb44ce23",
-    "x-generated-at": "2026-10-16T11:27:01.857457+00:00"
+    "x-git-commit": "dc99000bad7c175807ba38b0913890aac925c447",
+    "x-generated-at": "2026-10-16T21:02:25.863909+00:00"
   },
   "paths": {
     "/health/live": {
@@ -150,8 +150,30 @@
           "Cases"
         ],
         "summary": "Criar caso clínico",
-        "description": "Cria um caso no tenant ativo, inicialmente no estado DRAFT. No ambiente local, tenant e usuário são fornecidos por um adapter temporário; eles nunca são aceitos no corpo da requisição.",
+        "description": "Cria um caso no tenant ativo, inicialmente no estado DRAFT. No ambiente local, tenant e usuário são fornecidos por um adapter temporário; eles nunca são aceitos no corpo da requisição. Com Idempotency-Key, repetir a mesma operação e o mesmo corpo devolve o caso original. A chave é vinculada ao tenant/ator, não expira e não pode ser reutilizada com outro corpo.",
         "operationId": "create_case_api_v1_cases_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Chave estável para repetir esta operação sem criar outro caso",
+              "title": "Idempotency-Key"
+            },
+            "description": "Chave estável para repetir esta operação sem criar outro caso"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -173,12 +195,22 @@
               }
             }
           },
+          "409": {
+            "description": "A chave de idempotência foi reutilizada com dados diferentes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdempotencyKeyConflictResponse"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Entrada inválida ou violação de regra do caso",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/CreateCaseValidationErrorResponse"
                 }
               }
             }
@@ -834,11 +866,24 @@
             ],
             "title": "Next Cursor",
             "description": "Cursor opaco para a próxima página; nulo quando não houver mais resultados"
+          },
+          "status_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/CaseStatus"
+            },
+            "type": "object",
+            "title": "Status Counts",
+            "description": "Contagem de todos os casos do tenant que correspondem à busca, por status; independe dos filtros status e cursor da página."
           }
         },
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "next_cursor",
+          "status_counts"
         ],
         "title": "CaseListResponse"
       },
@@ -980,7 +1025,26 @@
           "READY",
           "ARCHIVED"
         ],
-        "title": "CaseStatus"
+        "title": "CaseStatus",
+        "description": "Ciclo de vida do caso clínico.\n\nDRAFT é atribuído na criação. IN_PLANNING e ARCHIVED são rótulos literais.\nREADY ainda não tem transição de negócio definida e não significa conclusão clínica."
+      },
+      "CaseValidationDetails": {
+        "properties": {
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field",
+            "description": "Campo relacionado à regra de domínio"
+          }
+        },
+        "type": "object",
+        "title": "CaseValidationDetails"
       },
       "CompletedImageUploadResponse": {
         "properties": {
@@ -1170,6 +1234,51 @@
           "weight_kg": 31.4
         }
       },
+      "CreateCaseValidationErrorResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "REQUEST_VALIDATION_ERROR",
+              "CASE_VALIDATION_ERROR"
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequestValidationDetails"
+              },
+              {
+                "$ref": "#/components/schemas/CaseValidationDetails"
+              }
+            ],
+            "title": "Details"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "details"
+        ],
+        "title": "CreateCaseValidationErrorResponse"
+      },
       "CreateImageUploadRequest": {
         "properties": {
           "original_filename": {
@@ -1227,7 +1336,8 @@
           "details": {
             "additionalProperties": true,
             "type": "object",
-            "title": "Details"
+            "title": "Details",
+            "description": "Campos dependem de code. REQUEST_VALIDATION_ERROR: errors[], cada item com field e type. CASE_VALIDATION_ERROR: field opcional. IMAGE_UPLOAD_OBJECT_INVALID: upload_id e reason."
           },
           "trace_id": {
             "anyOf": [
@@ -1260,6 +1370,41 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "IdempotencyKeyConflictResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "const": "IDEMPOTENCY_KEY_REUSED",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "IdempotencyKeyConflictResponse"
       },
       "ImageKind": {
         "type": "string",
@@ -2001,6 +2146,22 @@
         ],
         "title": "PresignedPostResponse"
       },
+      "RequestValidationDetails": {
+        "properties": {
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationFieldError"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "errors"
+        ],
+        "title": "RequestValidationDetails"
+      },
       "SaveImagePlanRequest": {
         "properties": {
           "base_revision": {
@@ -2058,6 +2219,26 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ValidationFieldError": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "description": "Nome do campo em snake_case"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Tipo estável de validação, por exemplo greater_than"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "type"
+        ],
+        "title": "ValidationFieldError"
       }
     }
   }

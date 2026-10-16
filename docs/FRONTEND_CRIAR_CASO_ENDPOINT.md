@@ -2,6 +2,7 @@
 
 > Escopo: primeiro vertical slice implementado no backend.  
 > Endpoint: `POST /api/v1/cases`  
+> Contrato: OpenAPI `0.8.0`.
 > Referência visual detalhada: `docs/frontend/criar-caso-v1.png`.
 
 ![Referência visual para criação de caso](frontend/criar-caso-v1.png)
@@ -51,6 +52,8 @@ Em desenvolvimento local, o endpoint pode ser chamado diretamente para validar o
 `POST /api/v1/cases`  
 `Content-Type: application/json`
 
+Enviar também `Idempotency-Key: <UUID>` e manter a mesma chave até a tentativa terminar. O header é opcional para clientes antigos, mas obrigatório no fluxo integrado do frontend.
+
 ```json
 {
   "title": "Planejamento TPLO — joelho direito",
@@ -91,6 +94,10 @@ Status: `201 Created`
 ```
 
 O frontend deve usar `id` para navegar para a tela de detalhes, agora atendida por `GET /api/v1/cases/{case_id}`, e `status` para exibir o estado traduzido. `tenant_id` e `created_by` não precisam ser mostrados na interface.
+
+### Retry seguro
+
+Enviar um header `Idempotency-Key` estável (UUID aleatório) por tentativa lógica de criação. Repetir a mesma chave com o mesmo corpo e no mesmo tenant/ator devolve o caso original, inclusive quando a primeira resposta se perdeu. As chaves são armazenadas como hash, não expiram e não podem ser reutilizadas; a mesma chave com outro corpo retorna `409 IDEMPOTENCY_KEY_REUSED`. Para uma nova criação, gerar outra chave.
 
 ### Erros
 
@@ -163,6 +170,7 @@ Exemplo com `curl`:
 ```bash
 curl -X POST http://localhost:8000/api/v1/cases \
   -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: 00000000-0000-4000-8000-000000000001' \
   -d '{
     "title": "Planejamento TPLO — joelho direito",
     "animal_name": "Paciente sintético 01",

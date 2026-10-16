@@ -90,8 +90,13 @@ class CaseListItemResponse(BaseModel):
 class CaseListResponse(BaseModel):
     items: list[CaseListItemResponse]
     next_cursor: str | None = Field(
-        default=None,
         description="Cursor opaco para a próxima página; nulo quando não houver mais resultados",
+    )
+    status_counts: dict[CaseStatus, int] = Field(
+        description=(
+            "Contagem de todos os casos do tenant que correspondem à busca, por status; "
+            "independe dos filtros status e cursor da página."
+        ),
     )
 
 
@@ -303,6 +308,39 @@ class ImagePlanResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     code: str
+    message: str
+    details: dict[str, object] = Field(
+        default_factory=dict,
+        description=(
+            "Campos dependem de code. REQUEST_VALIDATION_ERROR: errors[], cada item com field e type. "
+            "CASE_VALIDATION_ERROR: field opcional. IMAGE_UPLOAD_OBJECT_INVALID: upload_id e reason."
+        ),
+    )
+    trace_id: str | None = None
+
+
+class ValidationFieldError(BaseModel):
+    field: str = Field(description="Nome do campo em snake_case")
+    type: str = Field(description="Tipo estável de validação, por exemplo greater_than")
+
+
+class RequestValidationDetails(BaseModel):
+    errors: list[ValidationFieldError]
+
+
+class CaseValidationDetails(BaseModel):
+    field: str | None = Field(default=None, description="Campo relacionado à regra de domínio")
+
+
+class CreateCaseValidationErrorResponse(BaseModel):
+    code: Literal["REQUEST_VALIDATION_ERROR", "CASE_VALIDATION_ERROR"]
+    message: str
+    details: RequestValidationDetails | CaseValidationDetails
+    trace_id: str | None = None
+
+
+class IdempotencyKeyConflictResponse(BaseModel):
+    code: Literal["IDEMPOTENCY_KEY_REUSED"]
     message: str
     details: dict[str, object] = Field(default_factory=dict)
     trace_id: str | None = None

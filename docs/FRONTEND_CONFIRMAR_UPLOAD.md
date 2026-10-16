@@ -2,7 +2,7 @@
 
 > Escopo: confirmação e agendamento do módulo Imaging (`IMG-01`).  
 > Endpoint disponível: `POST /api/v1/image-uploads/{upload_id}/complete`.  
-> Contrato publicado: OpenAPI `0.6.0`.  
+> Contrato publicado: OpenAPI `0.8.0`.
 > Referência visual: `docs/frontend/confirmacao-upload-v1.png`.
 
 ![Referência visual da confirmação do upload](frontend/confirmacao-upload-v1.png)
@@ -79,7 +79,7 @@ O frontend deve manter os estados separados:
 |---|---|---|
 | `404 IMAGE_UPLOAD_NOT_FOUND` | Sessão ausente ou pertencente a outro tenant | Remover o estado local e voltar ao caso |
 | `409 IMAGE_UPLOAD_EXPIRED` | Nenhum objeto foi encontrado após a expiração | Criar uma nova sessão e reenviar |
-| `409 IMAGE_UPLOAD_OBJECT_INVALID` + `object_not_found` | Storage ainda não apresenta o objeto | Retry curto e limitado |
+| `409 IMAGE_UPLOAD_OBJECT_INVALID` + `object_not_found` | Storage ainda não apresenta o objeto | Repetir confirmação após 1, 2 e 4 segundos; depois permitir novo envio |
 | `409 IMAGE_UPLOAD_OBJECT_INVALID` + `size_mismatch` | Tamanho divergente | Selecionar e enviar novamente |
 | `409 IMAGE_UPLOAD_OBJECT_INVALID` + `media_type_mismatch` | Tipo divergente | Selecionar e enviar novamente |
 | `409 IMAGE_UPLOAD_OBJECT_INVALID` + `checksum_mismatch` | Integridade divergente | Selecionar e enviar novamente |
