@@ -98,6 +98,15 @@ sudo systemctl status vetorthoplan-worker --no-pager -l
 sudo journalctl -u vetorthoplan-worker -f
 ```
 
+Para validar o fluxo real de uma imagem até `READY` e conferir que a prévia pode ser baixada e decodificada:
+
+```bash
+cd /home/capcode/Documentos/projetos/vetorthoplan_backend
+API_BASE_URL=http://127.0.0.1:8000 .venv/bin/python scripts/smoke_image_ingestion.py
+```
+
+Execute com a API, PostgreSQL, bucket S3 compatível e worker ativos. O script envia um PNG sintético, aguarda o job e verifica o estado `READY`, o tipo e as dimensões da prévia. Ele salva a prévia baixada em `/tmp/vetorthoplan-smoke-preview-<id>.png` para inspeção visual; `SMOKE_PREVIEW_OUTPUT` permite escolher outro caminho. O teste cria um caso e uma imagem persistentes; não usa nem grava dados clínicos reais. Configure `SMOKE_TIMEOUT_SECONDS` para alterar o limite de espera (padrão: 120 segundos).
+
 As pranchas de referência por funcionalidade estão indexadas em [REFERENCIAS_VISUAIS_ENDPOINTS.md](docs/REFERENCIAS_VISUAIS_ENDPOINTS.md).
 
 ## Contexto de identidade temporário
