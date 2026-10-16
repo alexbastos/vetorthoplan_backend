@@ -15,6 +15,40 @@ services:
     volumes:
       - vetorthoplan_postgres_data:/var/lib/postgresql/data
 
+  minio:
+    image: quay.io/minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - vetorthoplan_minio_data:/data
+    restart: unless-stopped
+
+  minio-bootstrap:
+    image: quay.io/minio/mc:latest
+    profiles: ["bootstrap"]
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-vetorthoplan-uploads-local}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do sleep 2; done
+        mc mb --ignore-existing "local/$$STORAGE_BUCKET"
+        if ! mc admin user info local "$$AWS_ACCESS_KEY_ID" >/dev/null 2>&1; then
+          mc admin user add local "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY"
+        fi
+        mc admin policy attach local readwrite --user "$$AWS_ACCESS_KEY_ID"
+
 volumes:
   vetorthoplan_postgres_data:
-
+  vetorthoplan_minio_data:

@@ -98,6 +98,18 @@ sudo systemctl status vetorthoplan-worker --no-pager -l
 sudo journalctl -u vetorthoplan-worker -f
 ```
 
+### Storage local para desenvolvimento
+
+O fluxo de upload usa a API S3. Em um servidor sem AWS, prepare um MinIO local persistido em volume Docker:
+
+```bash
+bash scripts/setup_local_object_storage.sh
+```
+
+O script configura o bucket e credenciais locais no `.env` (permissão `600`), sobe MinIO e reinicia API/worker se as unidades systemd existirem. O serviço fica limitado a `127.0.0.1:9000`; o console fica em `127.0.0.1:9001`. Os arquivos sobrevivem a reinícios do container no volume `vetorthoplan_minio_data`. O script não altera Apache, firewall nem DNS e recusa `APP_ENV=staging` ou `production`.
+
+Depois, valide no próprio servidor com `scripts/smoke_image_ingestion.py`. O endpoint `http://127.0.0.1:9000` atende a API e o smoke test executados no servidor; ele não é acessível por um navegador em outro computador. Para upload direto do frontend externo será necessário publicar um endpoint S3 compatível com TLS e URL acessível pelo navegador, ou implementar um endpoint de upload proxy na API.
+
 Para validar o fluxo real de uma imagem até `READY` e conferir que a prévia pode ser baixada e decodificada:
 
 ```bash
