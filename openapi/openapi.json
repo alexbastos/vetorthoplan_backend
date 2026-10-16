@@ -637,6 +637,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "description": "Validation Error",
             "content": {

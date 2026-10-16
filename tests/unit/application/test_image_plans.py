@@ -4,8 +4,8 @@ from uuid import UUID
 import pytest
 
 from vetorthoplan.application.context import TenantContext
-from vetorthoplan.application.errors import PlanRevisionConflictError
-from vetorthoplan.application.use_cases import SaveImagePlan
+from vetorthoplan.application.errors import ImageNotReadyError, PlanRevisionConflictError
+from vetorthoplan.application.use_cases import GetImagePlan, SaveImagePlan
 from vetorthoplan.domain.imaging import ImageUpload
 from vetorthoplan.domain.planning import ImagePlan
 
@@ -48,8 +48,11 @@ def ready_image() -> ImageUpload:
 
 
 class Images:
+    def __init__(self, image: ImageUpload | None = None) -> None:
+        self.image = image or ready_image()
+
     async def get_by_image_id(self, tenant_id: UUID, image_id: UUID):
-        return ready_image() if tenant_id == TENANT_ID and image_id == IMAGE_ID else None
+        return self.image if tenant_id == TENANT_ID and image_id == IMAGE_ID else None
 
 
 class Plans:
@@ -60,6 +63,8 @@ class Plans:
         return self.plan if tenant_id == TENANT_ID and image_id == IMAGE_ID else None
 
     async def add(self, plan: ImagePlan):
+        if self.plan is not None:
+            return None
         self.plan = plan
         return plan
 
@@ -102,5 +107,65 @@ async def test_plan_rejects_stale_revision() -> None:
 
     with pytest.raises(PlanRevisionConflictError) as error:
         await use_case.execute(IMAGE_ID, 0, DOCUMENT, context)
+
+    assert error.value.current_revision == 1
+
+
+@pytest.mark.asyncio
+async def test_get_plan_returns_empty_document_before_first_save() -> None:
+    use_case = GetImagePlan(plans=Plans(), images=Images())
+
+    result = await use_case.execute(IMAGE_ID, TenantContext(TENANT_ID, ACTOR_ID))
+
+    assert result.revision == 0
+    assert result.document == DOCUMENT
+    assert result.updated_at is None
+
+
+@pytest.mark.asyncio
+async def test_get_plan_requires_image_to_be_ready() -> None:
+    image = ImageUpload.create(
+        upload_id=UPLOAD_ID,
+        image_id=IMAGE_ID,
+        tenant_id=TENANT_ID,
+        case_id=CASE_ID,
+        actor_id=ACTOR_ID,
+        original_filename="image.png",
+        media_type="image/png",
+        size_bytes=10,
+        sha256="a" * 64,
+        object_key="quarantine/test/image.png",
+        created_at=NOW,
+        expires_at=NOW + timedelta(minutes=5),
+    )
+    use_case = GetImagePlan(plans=Plans(), images=Images(image))
+
+    with pytest.raises(ImageNotReadyError):
+        await use_case.execute(IMAGE_ID, TenantContext(TENANT_ID, ACTOR_ID))
+
+
+@pytest.mark.asyncio
+async def test_concurrent_first_save_returns_revision_conflict() -> None:
+    # Simulate another request winning the INSERT after this request's initial read.
+    competing_plan = ImagePlan.create(
+        plan_id=PLAN_ID,
+        tenant_id=TENANT_ID,
+        case_id=CASE_ID,
+        image_id=IMAGE_ID,
+        document=DOCUMENT,
+        actor_id=ACTOR_ID,
+        now=NOW,
+    )
+
+    class ConcurrentPlans(Plans):
+        async def add(self, plan: ImagePlan):
+            self.plan = competing_plan
+            return None
+
+    plans = ConcurrentPlans()
+    use_case = SaveImagePlan(plans=plans, images=Images(), id_generator=IdGenerator(), clock=Clock())
+
+    with pytest.raises(PlanRevisionConflictError) as error:
+        await use_case.execute(IMAGE_ID, 0, DOCUMENT, TenantContext(TENANT_ID, ACTOR_ID))
 
     assert error.value.current_revision == 1

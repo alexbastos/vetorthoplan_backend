@@ -35,6 +35,8 @@ class GetImagePlan:
         image = await self._images.get_by_image_id(context.tenant_id, image_id)
         if image is None:
             raise ImageNotFoundError(image_id)
+        if image.status != ImageUploadStatus.READY:
+            raise ImageNotReadyError(image_id)
         plan = await self._plans.get(context.tenant_id, image_id)
         if plan is None:
             return ImagePlanView(
@@ -87,6 +89,9 @@ class SaveImagePlan:
                     now=self._clock.now(),
                 )
             )
+            if saved is None:
+                latest = await self._plans.get(context.tenant_id, image_id)
+                raise PlanRevisionConflictError(latest.revision if latest else 0)
         else:
             if current.revision != base_revision:
                 raise PlanRevisionConflictError(current.revision)

@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vetorthoplan.domain.planning import ImagePlan
@@ -20,9 +21,10 @@ class SqlAlchemyImagePlanRepository:
         )
         return self._to_domain(model) if model else None
 
-    async def add(self, plan: ImagePlan) -> ImagePlan:
-        self._session.add(
-            ImagePlanModel(
+    async def add(self, plan: ImagePlan) -> ImagePlan | None:
+        result = await self._session.execute(
+            insert(ImagePlanModel)
+            .values(
                 id=plan.id,
                 tenant_id=plan.tenant_id,
                 case_id=plan.case_id,
@@ -33,9 +35,10 @@ class SqlAlchemyImagePlanRepository:
                 created_at=plan.created_at,
                 updated_at=plan.updated_at,
             )
+            .on_conflict_do_nothing(constraint="uq_image_plans_tenant_image")
         )
         await self._session.flush()
-        return plan
+        return plan if result.rowcount == 1 else None
 
     async def save(self, plan: ImagePlan, expected_revision: int) -> ImagePlan | None:
         result = await self._session.execute(

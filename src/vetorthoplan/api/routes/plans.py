@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/v1")
     "/images/{image_id}/plan",
     response_model=ImagePlanResponse,
     tags=["Planning"],
-    responses={404: {"model": ErrorResponse}},
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
 )
 async def get_image_plan(
     image_id: UUID,

@@ -12,7 +12,7 @@ Este índice liga os contratos do backend às pranchas disponíveis para orienta
 | `GET /api/v1/jobs/{job_id}` | [processamento-imagem-v1.png](frontend/processamento-imagem-v1.png) | Consulta estados do worker e da ingestão. |
 | `GET /api/v1/cases/{case_id}/images` e `GET /api/v1/images/{image_id}` | [processamento-imagem-v1.png](frontend/processamento-imagem-v1.png) | Lista e consulta metadados e estados das imagens. |
 | `GET /api/v1/images/{image_id}/preview` | [processamento-imagem-v1.png](frontend/processamento-imagem-v1.png) | Solicita URL temporária da prévia PNG privada. |
-| `GET /api/v1/images/{image_id}/plan` e `PUT /api/v1/images/{image_id}/plan` | [plano-geometrico-v1.svg](frontend/plano-geometrico-v1.svg) | A API persiste um documento geométrico versionado e detecta conflito por revisão; não implementa ainda o fluxo clínico TPLO completo. |
+| `GET /api/v1/images/{image_id}/plan` e `PUT /api/v1/images/{image_id}/plan` | [plano-geometrico-v1.svg](frontend/plano-geometrico-v1.svg) | A API persiste um documento geométrico versionado e detecta conflito por revisão; [contrato e exemplos](PLANO_GEOMETRICO_API.md). Não implementa ainda o fluxo clínico TPLO completo. |
 | Worker de ingestão de imagens | [processamento-imagem-v1.png](frontend/processamento-imagem-v1.png) | Representa estados de processamento, não a instalação operacional do serviço. |
 
 As imagens específicas por etapa também estão listadas no [guia visual do fluxo TPLO](GUIA_FRONTEND_FLUXO_TPLO.md). O artefato `fluxo-frontend-tplo-v2.png` apresenta a jornada completa e marca explicitamente as etapas planejadas.
