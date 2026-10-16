@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Referência de interface para plano geométrico VetOrthoPlan</title>
+  <desc id="desc">Wireframe de editor de radiografia com calibração, objetos geométricos, revisão versionada e aviso de conflito. Referência conceitual para os endpoints GET e PUT de plano.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#24384a"/>
+      <stop offset="1" stop-color="#101c29"/>
+    </linearGradient>
+    <linearGradient id="bone" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f7fa" stop-opacity=".86"/>
+      <stop offset="1" stop-color="#bac8d4" stop-opacity=".54"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#20354a" flood-opacity=".10"/>
+    </filter>
+    <style>
+      text { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .small { font-size: 14px; fill: #617286; }
+      .label { font-size: 16px; fill: #33465a; }
+      .muted { fill: #718196; }
+      .tool { font-size: 14px; fill: #42566d; }
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="#eef2f6"/>
+  <rect x="24" y="22" width="1552" height="956" rx="20" fill="#fff" filter="url(#shadow)"/>
+
+  <!-- Header -->
+  <rect x="24" y="22" width="1552" height="78" rx="20" fill="#fff"/>
+  <path d="M24 80h1552" stroke="#e7edf3"/>
+  <rect x="50" y="42" width="38" height="38" rx="11" fill="#0c6e78"/>
+  <path d="M60 61h18M69 52v18" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <text x="101" y="67" font-size="22" font-weight="700" fill="#18334b">VetOrthoPlan</text>
+  <path d="M290 50v24" stroke="#e2e8ef"/>
+  <text x="315" y="58" font-size="13" class="muted">CASO DE DEMONSTRAÇÃO</text>
+  <text x="315" y="78" font-size="16" font-weight="600" fill="#2d4359">Plano geométrico</text>
+  <rect x="1300" y="42" width="115" height="36" rx="18" fill="#e8f6f1"/>
+  <circle cx="1320" cy="60" r="5" fill="#1d9a70"/>
+  <text x="1333" y="65" font-size="13" font-weight="600" fill="#207b60">Salvo</text>
+  <text x="1430" y="64" font-size="14" fill="#52667a">Revisão 3</text>
+  <circle cx="1528" cy="60" r="19" fill="#eaf0f5"/>
+  <text x="1528" y="65" text-anchor="middle" font-size="14" font-weight="700" fill="#52667a">CP</text>
+
+  <!-- Left tools -->
+  <rect x="44" y="120" width="84" height="824" rx="15" fill="#f7f9fb" stroke="#e7edf3"/>
+  <text x="86" y="153" text-anchor="middle" font-size="11" font-weight="700" letter-spacing="1" fill="#8291a2">FERRAMENTAS</text>
+  <rect x="54" y="173" width="64" height="58" rx="11" fill="#e6f3f4" stroke="#b7dadd"/>
+  <path d="M76 191l20 20M76 211l20-20" stroke="#087783" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="86" y="249" text-anchor="middle" class="tool">Selecionar</text>
+  <rect x="54" y="264" width="64" height="58" rx="11" fill="#fff" stroke="#e1e8ef"/>
+  <path d="M72 294h28" stroke="#60758a" stroke-width="2.5"/>
+  <circle cx="72" cy="294" r="4" fill="#fff" stroke="#60758a" stroke-width="2"/>
+  <circle cx="100" cy="294" r="4" fill="#fff" stroke="#60758a" stroke-width="2"/>
+  <text x="86" y="340" text-anchor="middle" class="tool">Linha</text>
+  <rect x="54" y="355" width="64" height="58" rx="11" fill="#fff" stroke="#e1e8ef"/>
+  <path d="M73 394l13-25 17 25" fill="none" stroke="#60758a" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="86" y="431" text-anchor="middle" class="tool">Ângulo</text>
+  <rect x="54" y="446" width="64" height="58" rx="11" fill="#fff" stroke="#e1e8ef"/>
+  <circle cx="86" cy="475" r="14" fill="none" stroke="#60758a" stroke-width="2.5"/>
+  <text x="86" y="522" text-anchor="middle" class="tool">Círculo</text>
+  <rect x="54" y="537" width="64" height="58" rx="11" fill="#fff" stroke="#e1e8ef"/>
+  <path d="M86 550v29M73 565h26" stroke="#60758a" stroke-width="2.5"/>
+  <text x="86" y="613" text-anchor="middle" class="tool">TPLO</text>
+  <path d="M62 640h48" stroke="#e1e8ef"/>
+  <circle cx="86" cy="674" r="15" fill="#e9eff5"/>
+  <text x="86" y="680" text-anchor="middle" font-size="18" font-weight="600" fill="#60758a">↶</text>
+  <text x="86" y="708" text-anchor="middle" class="tool">Desfazer</text>
+  <circle cx="86" cy="752" r="15" fill="#e9eff5"/>
+  <text x="86" y="758" text-anchor="middle" font-size="18" font-weight="600" fill="#60758a">↷</text>
+  <text x="86" y="786" text-anchor="middle" class="tool">Refazer</text>
+
+  <!-- Image workspace -->
+  <rect x="148" y="120" width="950" height="824" rx="15" fill="#f5f7f9" stroke="#e7edf3"/>
+  <text x="176" y="157" font-size="16" font-weight="650" fill="#324a60">Imagem</text>
+  <text x="176" y="180" class="small">PNG · 2048 × 1536 px · prévia de referência</text>
+  <rect x="1002" y="138" width="68" height="31" rx="8" fill="#fff" stroke="#dce4eb"/>
+  <text x="1036" y="159" text-anchor="middle" font-size="13" fill="#51667a">100%</text>
+  <rect x="275" y="205" width="700" height="690" rx="8" fill="url(#canvas)"/>
+  <rect x="290" y="220" width="670" height="660" rx="4" fill="#172737" stroke="#536879" stroke-opacity=".45"/>
+  <!-- Schematic x-ray anatomy -->
+  <path d="M566 273 C540 289 535 320 548 350 C558 373 566 392 560 425 C551 480 548 536 553 583 C557 627 548 661 531 697 C514 734 516 781 539 817 C558 846 596 852 620 828 C642 806 640 775 628 744 C614 707 617 672 626 635 C638 588 640 539 632 492 C627 461 626 431 640 399 C653 369 661 339 648 311 C635 282 598 261 566 273Z" fill="url(#bone)" opacity=".86"/>
+  <path d="M685 277 C655 291 646 324 657 352 C667 379 679 400 672 433 C662 480 666 535 677 580 C687 623 683 668 669 711 C657 748 660 790 682 819 C704 849 744 849 765 821 C786 794 780 760 766 729 C750 694 749 656 758 615 C769 565 770 518 758 473 C750 442 752 414 768 385 C784 356 787 326 770 300 C751 272 713 264 685 277Z" fill="url(#bone)" opacity=".76"/>
+  <path d="M542 545 C565 526 601 526 633 542 C648 550 650 571 636 583 C609 604 567 604 541 585 C526 574 529 556 542 545Z" fill="#dce5eb" opacity=".72"/>
+  <path d="M652 544 C681 526 730 529 760 547 C777 557 775 578 759 590 C730 610 684 608 654 589 C638 579 638 556 652 544Z" fill="#dce5eb" opacity=".63"/>
+  <path d="M527 698 C568 674 619 674 657 698M653 700 C692 675 744 677 780 704" fill="none" stroke="#dfe8ee" stroke-width="10" stroke-linecap="round" opacity=".45"/>
+  <path d="M474 250v614M809 250v614" stroke="#fff" stroke-opacity=".06" stroke-dasharray="4 8"/>
+  <rect x="310" y="238" width="94" height="34" rx="7" fill="#0c1722" fill-opacity=".68"/>
+  <text x="357" y="260" text-anchor="middle" font-size="13" font-weight="600" fill="#eaf1f5">RX · LATERAL</text>
+  <!-- Geometry overlays -->
+  <line x1="498" y1="319" x2="714" y2="790" stroke="#34d2cb" stroke-width="3" stroke-dasharray="9 7"/>
+  <circle cx="498" cy="319" r="6" fill="#fff" stroke="#13b7b0" stroke-width="3"/>
+  <circle cx="714" cy="790" r="6" fill="#fff" stroke="#13b7b0" stroke-width="3"/>
+  <rect x="420" y="535" width="128" height="34" rx="8" fill="#063b42"/>
+  <text x="484" y="557" text-anchor="middle" font-size="13" font-weight="600" fill="#c8fffb">Referência</text>
+  <line x1="514" y1="647" x2="765" y2="605" stroke="#ffcb61" stroke-width="3"/>
+  <circle cx="514" cy="647" r="5" fill="#fff" stroke="#f1ad32" stroke-width="3"/>
+  <circle cx="765" cy="605" r="5" fill="#fff" stroke="#f1ad32" stroke-width="3"/>
+  <path d="M636 627 A61 61 0 0 1 690 579" fill="none" stroke="#ffcb61" stroke-width="3"/>
+  <circle cx="636" cy="627" r="5" fill="#fff" stroke="#f1ad32" stroke-width="3"/>
+  <rect x="666" y="627" width="65" height="31" rx="7" fill="#654318"/>
+  <text x="698" y="648" text-anchor="middle" font-size="13" font-weight="700" fill="#ffebbd">Ângulo</text>
+  <circle cx="690" cy="682" r="77" fill="none" stroke="#fb7f98" stroke-width="3" stroke-dasharray="8 6"/>
+  <circle cx="690" cy="682" r="5" fill="#fff" stroke="#f56784" stroke-width="3"/>
+  <path d="M672 744 A95 95 0 0 0 780 672" fill="none" stroke="#a995ff" stroke-width="4" stroke-dasharray="7 5"/>
+  <rect x="784" y="697" width="71" height="31" rx="7" fill="#433866"/>
+  <text x="819" y="718" text-anchor="middle" font-size="13" font-weight="700" fill="#eee9ff">TPLO</text>
+  <rect x="181" y="900" width="882" height="25" rx="8" fill="#fff"/>
+  <text x="197" y="918" class="small">Os objetos são armazenados em coordenadas normalizadas da imagem (0 a 1).</text>
+
+  <!-- Right properties -->
+  <rect x="1118" y="120" width="434" height="824" rx="15" fill="#fff" stroke="#e7edf3"/>
+  <text x="1150" y="158" font-size="17" font-weight="700" fill="#2c4358">Propriedades do plano</text>
+  <text x="1150" y="192" class="small">REVISÃO ATUAL</text>
+  <rect x="1150" y="204" width="370" height="60" rx="11" fill="#f5f8fa" stroke="#e5ebf0"/>
+  <text x="1170" y="230" font-size="14" fill="#53677b">Revisão 3</text>
+  <text x="1170" y="249" font-size="12" fill="#8492a1">Atualizado e salvo</text>
+  <circle cx="1490" cy="234" r="12" fill="#e8f6f1"/>
+  <path d="M1484 234l4 4 8-9" fill="none" stroke="#168763" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="1150" y="302" font-size="14" font-weight="700" fill="#40566b">Calibração</text>
+  <rect x="1150" y="315" width="370" height="98" rx="11" fill="#f8fafb" stroke="#e5ebf0"/>
+  <text x="1170" y="343" class="small">Tipo</text>
+  <text x="1497" y="343" text-anchor="end" font-size="13" fill="#52677a">Linha de referência</text>
+  <text x="1170" y="378" class="small">Comprimento conhecido</text>
+  <rect x="1381" y="354" width="117" height="40" rx="7" fill="#fff" stroke="#dce5ec"/>
+  <text x="1396" y="380" font-size="15" fill="#344b60">25 mm</text>
+
+  <text x="1150" y="452" font-size="14" font-weight="700" fill="#40566b">Objetos (4)</text>
+  <rect x="1150" y="466" width="370" height="57" rx="9" fill="#eff8f8" stroke="#cde7e7"/>
+  <circle cx="1175" cy="494" r="7" fill="#0d9a9d"/>
+  <text x="1193" y="499" font-size="14" fill="#334a60">Linha de referência</text>
+  <text x="1497" y="499" text-anchor="end" font-size="12" fill="#698094">LINE</text>
+  <rect x="1150" y="531" width="370" height="57" rx="9" fill="#fff" stroke="#e5ebf0"/>
+  <circle cx="1175" cy="559" r="7" fill="#dfa332"/>
+  <text x="1193" y="564" font-size="14" fill="#334a60">Ângulo 01</text>
+  <text x="1497" y="564" text-anchor="end" font-size="12" fill="#698094">ANGLE</text>
+  <rect x="1150" y="596" width="370" height="57" rx="9" fill="#fff" stroke="#e5ebf0"/>
+  <circle cx="1175" cy="624" r="7" fill="#ed7890"/>
+  <text x="1193" y="629" font-size="14" fill="#334a60">Círculo 01</text>
+  <text x="1497" y="629" text-anchor="end" font-size="12" fill="#698094">CIRCLE</text>
+  <rect x="1150" y="661" width="370" height="57" rx="9" fill="#fff" stroke="#e5ebf0"/>
+  <circle cx="1175" cy="689" r="7" fill="#9884e3"/>
+  <text x="1193" y="694" font-size="14" fill="#334a60">Parâmetros TPLO</text>
+  <text x="1497" y="694" text-anchor="end" font-size="12" fill="#698094">TPLO</text>
+
+  <rect x="1150" y="741" width="370" height="58" rx="10" fill="#fff5e8" stroke="#f2d3a2"/>
+  <circle cx="1174" cy="770" r="10" fill="#d18a1b"/>
+  <text x="1174" y="775" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">!</text>
+  <text x="1193" y="764" font-size="13" font-weight="650" fill="#805519">Conflito de revisão</text>
+  <text x="1193" y="783" font-size="12" fill="#8b6b3c">O plano foi alterado; carregue a revisão atual.</text>
+  <rect x="1150" y="817" width="370" height="48" rx="10" fill="#0c7881"/>
+  <text x="1335" y="847" text-anchor="middle" font-size="15" font-weight="650" fill="#fff">Salvar plano</text>
+  <text x="1150" y="899" font-size="12" fill="#78899a">PUT envia base_revision e o documento geométrico.</text>
+</svg>

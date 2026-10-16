@@ -44,6 +44,7 @@ Referências de produto e frontend:
 - [Prancha de upload de radiografia](docs/frontend/upload-radiografia-v1.png)
 - [Prancha de confirmação do upload](docs/frontend/confirmacao-upload-v1.png)
 - [Prancha de processamento da imagem](docs/frontend/processamento-imagem-v1.png)
+- [Índice visual dos endpoints e funcionalidades](docs/REFERENCIAS_VISUAIS_ENDPOINTS.md)
 
 ## PostgreSQL local opcional
 
@@ -88,6 +89,16 @@ bash scripts/fix_ubuntu_environment.sh
 ```
 
 Esse script instala uma unidade `systemd` sem `--root-path`, reinicia a API e valida health/OpenAPI. Ele não modifica VirtualHosts, certificados, firewall nem executa migrations automaticamente.
+
+Para executar o worker de ingestão continuamente como serviço `systemd`, depois que `.env`, PostgreSQL e storage estiverem configurados:
+
+```bash
+bash scripts/install_worker_service.sh
+sudo systemctl status vetorthoplan-worker --no-pager -l
+sudo journalctl -u vetorthoplan-worker -f
+```
+
+As pranchas de referência por funcionalidade estão indexadas em [REFERENCIAS_VISUAIS_ENDPOINTS.md](docs/REFERENCIAS_VISUAIS_ENDPOINTS.md).
 
 ## Contexto de identidade temporário
 
