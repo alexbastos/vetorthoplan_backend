@@ -12,8 +12,8 @@
     },
     "version": "0.8.0",
     "x-git-branch": "master",
-    "x-git-commit": "35d4f8b06293f873fcb728fbfd9b2e60cc6b7d9a",
-    "x-generated-at": "2026-10-16T23:26:39.917559+00:00"
+    "x-git-commit": "acd729b68d9136fa322954c2e97ffb4b2db84918",
+    "x-generated-at": "2026-10-16T23:29:31.410040+00:00"
   },
   "paths": {
     "/health/live": {
@@ -2199,6 +2199,44 @@
               "RIGHT"
             ],
             "title": "Laterality"
+          },
+          "projection": {
+            "type": "string",
+            "enum": [
+              "MEDIOLATERAL",
+              "CRANIOCAUDAL",
+              "UNKNOWN"
+            ],
+            "title": "Projection",
+            "default": "UNKNOWN"
+          },
+          "image_quality": {
+            "type": "string",
+            "enum": [
+              "ACCEPTABLE",
+              "LIMITED",
+              "REJECTED"
+            ],
+            "title": "Image Quality",
+            "default": "LIMITED"
+          },
+          "eligibility": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ELIGIBLE",
+              "INELIGIBLE"
+            ],
+            "title": "Eligibility",
+            "default": "PENDING"
+          },
+          "eligibility_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Eligibility Reasons"
           },
           "current_slope_degrees": {
             "anyOf": [

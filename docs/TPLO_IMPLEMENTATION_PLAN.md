@@ -13,4 +13,10 @@
 
 O documento de planejamento agora aceita `tplo` com lateralidade (`LEFT` ou `RIGHT`), ângulo atual, ângulo alvo e observações. Os ângulos são opcionais nesta etapa porque ainda não são calculados automaticamente. O plano continua versionado e protegido por conflito de revisão.
 
-Essa etapa não interpreta a radiografia nem recomenda valores clínicos; essas capacidades ficam para as etapas 2 e 3.
+Essa etapa não interpreta a radiografia nem recomenda valores clínicos; essas capacidades ficam para a etapa 3.
+
+## Etapa 2 — entregue
+
+O contrato TPLO agora registra a projeção (`MEDIOLATERAL`, `CRANIOCAUDAL` ou `UNKNOWN`), a qualidade (`ACCEPTABLE`, `LIMITED` ou `REJECTED`), a elegibilidade e os motivos de inelegibilidade. O backend impede combinações clínicas inconsistentes: uma imagem rejeitada não pode ser elegível, a elegibilidade exige projeção mediolateral e uma imagem inelegível precisa informar os motivos.
+
+Essa etapa valida os dados declarados pelo fluxo de revisão. A detecção automática desses atributos a partir dos pixels permanece na etapa 3.

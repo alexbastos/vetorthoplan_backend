@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from vetorthoplan.domain.cases import BiologicalSex, Case, CaseStatus
 from vetorthoplan.domain.imaging import ImageKind, ImageUpload, ImageUploadStatus
@@ -292,9 +292,23 @@ class TploPlanMetadata(BaseModel):
     """Clinical inputs recorded before automated TPLO calculations are available."""
 
     laterality: Literal["LEFT", "RIGHT"]
+    projection: Literal["MEDIOLATERAL", "CRANIOCAUDAL", "UNKNOWN"] = "UNKNOWN"
+    image_quality: Literal["ACCEPTABLE", "LIMITED", "REJECTED"] = "LIMITED"
+    eligibility: Literal["PENDING", "ELIGIBLE", "INELIGIBLE"] = "PENDING"
+    eligibility_reasons: list[str] = Field(default_factory=list, max_length=10)
     current_slope_degrees: float | None = Field(default=None, ge=0, le=90)
     target_slope_degrees: float | None = Field(default=None, ge=0, le=90)
     notes: str | None = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def validate_eligibility(self) -> "TploPlanMetadata":
+        if self.image_quality == "REJECTED" and self.eligibility == "ELIGIBLE":
+            raise ValueError("Imagem rejeitada não pode ser elegível para planejamento TPLO")
+        if self.eligibility == "ELIGIBLE" and self.projection != "MEDIOLATERAL":
+            raise ValueError("Planejamento TPLO elegível requer projeção mediolateral")
+        if self.eligibility == "INELIGIBLE" and not self.eligibility_reasons:
+            raise ValueError("eligibility_reasons é obrigatório quando a imagem é inelegível")
+        return self
 
 
 class PlanDocument(BaseModel):
