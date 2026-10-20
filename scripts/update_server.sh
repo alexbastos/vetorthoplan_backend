@@ -13,6 +13,13 @@ WORKER_SERVICE="vetorthoplan-worker"
 die() { printf '[ERRO] %s\n' "$*" >&2; exit 1; }
 info() { printf '\n==> %s\n' "$*"; }
 
+show_api_failure() {
+  printf '\n[DIAGNÓSTICO] Estado da API:\n'
+  sudo systemctl status "$API_SERVICE" --no-pager -l || true
+  printf '\n[DIAGNÓSTICO] Logs recentes da API:\n'
+  sudo journalctl -u "$API_SERVICE" -n 80 --no-pager || true
+}
+
 if [[ "$EUID" -eq 0 ]]; then
   die 'Execute como usuário normal; o script usa sudo quando necessário.'
 fi
@@ -50,10 +57,18 @@ info 'Aplicando migrations'
 
 info 'Reiniciando API'
 sudo systemctl restart "$API_SERVICE"
-sudo systemctl is-active --quiet "$API_SERVICE" || {
-  sudo systemctl status "$API_SERVICE" --no-pager -l || true
+api_started=0
+for _attempt in {1..20}; do
+  if sudo systemctl is-active --quiet "$API_SERVICE"; then
+    api_started=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$api_started" -ne 1 ]]; then
+  show_api_failure
   die "Serviço $API_SERVICE não iniciou."
-}
+fi
 
 info 'Reiniciando worker'
 if sudo systemctl cat "$WORKER_SERVICE" >/dev/null 2>&1; then
@@ -67,9 +82,19 @@ else
 fi
 
 info 'Validando health checks locais'
-live_status="$(curl --silent --show-error --connect-timeout 5 --max-time 15 \
-  --output /dev/null --write-out '%{http_code}' \
-  http://127.0.0.1:8000/health/live || true)"
+live_status=000
+ready_status=000
+for _attempt in {1..20}; do
+  live_status="$(curl --silent --show-error --connect-timeout 2 --max-time 5 \
+    --output /dev/null --write-out '%{http_code}' \
+    http://127.0.0.1:8000/health/live || true)"
+  [[ "$live_status" == 200 ]] && break
+  sleep 1
+done
+if [[ "$live_status" != 200 ]]; then
+  show_api_failure
+  die "health/live respondeu HTTP ${live_status:-sem resposta}."
+fi
 ready_status="$(curl --silent --show-error --connect-timeout 5 --max-time 15 \
   --output /dev/null --write-out '%{http_code}' \
   http://127.0.0.1:8000/health/ready || true)"
