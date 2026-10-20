@@ -32,18 +32,25 @@ class S3PresignedPostStorage:
 
         self._bucket = bucket
         self._expires_in_seconds = expires_in_seconds
+        endpoint_config = Config(
+            signature_version="s3v4",
+            **({"s3": {"addressing_style": "path"}} if endpoint_url else {}),
+        )
         self._client = boto3.client(
             "s3",
             region_name=region,
             endpoint_url=endpoint_url,
-            config=Config(signature_version="s3v4"),
+            config=endpoint_config,
         )
         self._presign_client = (
             boto3.client(
                 "s3",
                 region_name=region,
                 endpoint_url=presign_endpoint_url,
-                config=Config(signature_version="s3v4"),
+                config=Config(
+                    signature_version="s3v4",
+                    **({"s3": {"addressing_style": "path"}} if presign_endpoint_url else {}),
+                ),
             )
             if presign_endpoint_url and presign_endpoint_url != endpoint_url
             else self._client
