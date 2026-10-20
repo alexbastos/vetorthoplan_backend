@@ -12,6 +12,7 @@ def main() -> None:
         {
             "x-git-branch": git_value(("branch", "--show-current"), fallback="unknown"),
             "x-git-commit": git_value(("rev-parse", "HEAD"), fallback="unknown"),
+            "x-git-working-tree-dirty": git_dirty(),
             "x-generated-at": datetime.now(UTC).isoformat(),
         }
     )
@@ -33,6 +34,19 @@ def git_value(args: tuple[str, ...], fallback: str) -> str:
         ).stdout.strip() or fallback
     except (OSError, subprocess.CalledProcessError):
         return fallback
+
+
+def git_dirty() -> bool | None:
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return bool(result.stdout.strip())
+    except (OSError, subprocess.CalledProcessError):
+        return None
 
 
 if __name__ == "__main__":

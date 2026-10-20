@@ -52,6 +52,9 @@ class Repository:
             return None
         return self.upload
 
+    async def lock_by_id(self, tenant_id: UUID, upload_id: UUID) -> ImageUpload | None:
+        return await self.get_by_id(tenant_id, upload_id)
+
     async def save(self, upload: ImageUpload) -> ImageUpload:
         self.upload = upload
         self.saved.append(upload)

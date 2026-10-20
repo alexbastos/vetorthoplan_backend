@@ -59,6 +59,7 @@ async def test_post_case_returns_created_case_and_context_ids() -> None:
                 "title": "Planejamento TPLO — joelho direito",
                 "animal_name": "Paciente sintético 01",
                 "species": "Canina",
+                "sex": "FEMALE",
                 "approximate_age_months": 72,
                 "weight_kg": 31.4,
             },
@@ -71,7 +72,7 @@ async def test_post_case_returns_created_case_and_context_ids() -> None:
 
 
 @pytest.mark.asyncio
-async def test_post_case_rejects_birth_date_and_approximate_age_together() -> None:
+async def test_post_case_accepts_coherent_birth_date_and_age() -> None:
     async with AsyncClient(
         transport=ASGITransport(app=build_app()),
         base_url="http://test",
@@ -82,18 +83,16 @@ async def test_post_case_rejects_birth_date_and_approximate_age_together() -> No
                 "title": "Planejamento TPLO",
                 "animal_name": "Paciente sintético",
                 "species": "Canina",
-                "birth_date": "2020-01-01",
+                "sex": "UNKNOWN",
+                "birth_date": "2020-09-15",
                 "approximate_age_months": 72,
             },
         )
 
-    assert response.status_code == 422
-    assert response.json() == {
-        "code": "CASE_VALIDATION_ERROR",
-        "message": "Informe birth_date ou approximate_age_months, não ambos.",
-        "details": {"field": "approximate_age_months"},
-        "trace_id": None,
-    }
+    assert response.status_code == 201
+    assert response.json()["approximate_age_months"] == 72
+    assert response.json()["age_source"] == "BIRTH_DATE"
+    assert response.json()["age_reference_date"] == "2026-09-15"
 
 
 @pytest.mark.asyncio
@@ -108,6 +107,7 @@ async def test_post_case_uses_standard_error_for_invalid_request() -> None:
                 "title": "Planejamento TPLO",
                 "animal_name": "Paciente sintético",
                 "species": "Canina",
+                "sex": "MALE",
                 "weight_kg": -1,
             },
         )
@@ -117,6 +117,51 @@ async def test_post_case_uses_standard_error_for_invalid_request() -> None:
     assert response.json()["details"]["errors"] == [
         {"field": "weight_kg", "type": "greater_than"}
     ]
+
+
+@pytest.mark.asyncio
+async def test_post_case_requires_sex_with_structural_field_error() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=build_app()),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/api/v1/cases",
+            json={
+                "title": "Planejamento TPLO",
+                "animal_name": "Paciente sintético",
+                "species": "Canina",
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "REQUEST_VALIDATION_ERROR"
+    assert response.json()["details"]["errors"] == [
+        {"field": "sex", "type": "missing"}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_post_case_rejects_incoherent_age_with_field_error() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=build_app()),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/api/v1/cases",
+            json={
+                "title": "Planejamento TPLO",
+                "animal_name": "Paciente sintético",
+                "species": "Canina",
+                "sex": "UNKNOWN",
+                "birth_date": "2020-09-15",
+                "approximate_age_months": 71,
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "CASE_VALIDATION_ERROR"
+    assert response.json()["details"]["field"] == "approximate_age_months"
 
 
 @pytest.mark.asyncio

@@ -5,9 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.use_cases import (
+    CancelImageUpload,
     CompleteImageUpload,
     CreateCase,
     CreateImageUpload,
+    DeleteImage,
     GetCase,
     GetImage,
     GetImagePlan,
@@ -15,6 +17,7 @@ from vetorthoplan.application.use_cases import (
     GetIngestionJob,
     ListCaseImages,
     ListCases,
+    RetryIngestionJob,
     SaveImagePlan,
 )
 from vetorthoplan.config.settings import Settings, get_settings
@@ -71,6 +74,7 @@ def get_create_image_upload(
             bucket=settings.storage_bucket,
             region=settings.storage_region,
             endpoint_url=settings.storage_endpoint_url,
+            presign_endpoint_url=settings.storage_public_endpoint_url,
             expires_in_seconds=settings.upload_url_expires_seconds,
         ),
         id_generator=UuidGenerator(),
@@ -92,6 +96,7 @@ def get_complete_image_upload(
             bucket=settings.storage_bucket,
             region=settings.storage_region,
             endpoint_url=settings.storage_endpoint_url,
+            presign_endpoint_url=settings.storage_public_endpoint_url,
             expires_in_seconds=settings.upload_url_expires_seconds,
         ),
         id_generator=UuidGenerator(),
@@ -100,10 +105,38 @@ def get_complete_image_upload(
     )
 
 
+def get_cancel_image_upload(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> CancelImageUpload:
+    return CancelImageUpload(
+        uploads=SqlAlchemyImageUploadRepository(session),
+        storage=S3PresignedPostStorage(
+            bucket=settings.storage_bucket,
+            region=settings.storage_region,
+            endpoint_url=settings.storage_endpoint_url,
+            expires_in_seconds=settings.upload_url_expires_seconds,
+        ),
+    )
+
+
 def get_ingestion_job(
     session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> GetIngestionJob:
-    return GetIngestionJob(SqlAlchemyIngestionJobQueue(session))
+    return GetIngestionJob(
+        SqlAlchemyIngestionJobQueue(session),
+        SqlAlchemyImageUploadRepository(session),
+    )
+
+
+def get_retry_ingestion_job(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> RetryIngestionJob:
+    return RetryIngestionJob(
+        jobs=SqlAlchemyIngestionJobQueue(session),
+        images=SqlAlchemyImageUploadRepository(session),
+        clock=SystemClock(),
+    )
 
 
 def get_list_case_images(
@@ -121,6 +154,24 @@ def get_image(
     return GetImage(SqlAlchemyImageUploadRepository(session))
 
 
+def get_delete_image(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> DeleteImage:
+    return DeleteImage(
+        images=SqlAlchemyImageUploadRepository(session),
+        plans=SqlAlchemyImagePlanRepository(session),
+        jobs=SqlAlchemyIngestionJobQueue(session),
+        storage=S3PresignedPostStorage(
+            bucket=settings.storage_bucket,
+            region=settings.storage_region,
+            endpoint_url=settings.storage_endpoint_url,
+            expires_in_seconds=settings.upload_url_expires_seconds,
+        ),
+        clock=SystemClock(),
+    )
+
+
 def get_image_preview(
     session: Annotated[AsyncSession, Depends(get_database_session)],
     settings: Annotated[Settings, Depends(get_settings)],
@@ -131,6 +182,7 @@ def get_image_preview(
             bucket=settings.storage_bucket,
             region=settings.storage_region,
             endpoint_url=settings.storage_endpoint_url,
+            presign_endpoint_url=settings.storage_public_endpoint_url,
             expires_in_seconds=settings.preview_url_expires_seconds,
         ),
         clock=SystemClock(),
@@ -166,9 +218,12 @@ CompleteImageUploadDependency = Annotated[
     CompleteImageUpload,
     Depends(get_complete_image_upload),
 ]
+CancelImageUploadDependency = Annotated[CancelImageUpload, Depends(get_cancel_image_upload)]
 GetIngestionJobDependency = Annotated[GetIngestionJob, Depends(get_ingestion_job)]
+RetryIngestionJobDependency = Annotated[RetryIngestionJob, Depends(get_retry_ingestion_job)]
 ListCaseImagesDependency = Annotated[ListCaseImages, Depends(get_list_case_images)]
 GetImageDependency = Annotated[GetImage, Depends(get_image)]
+DeleteImageDependency = Annotated[DeleteImage, Depends(get_delete_image)]
 GetImagePreviewDependency = Annotated[GetImagePreview, Depends(get_image_preview)]
 GetImagePlanDependency = Annotated[GetImagePlan, Depends(get_image_plan)]
 SaveImagePlanDependency = Annotated[SaveImagePlan, Depends(get_save_image_plan)]

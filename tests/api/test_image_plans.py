@@ -5,6 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from vetorthoplan.api.dependencies import get_image_plan, get_save_image_plan, get_tenant_context
+from vetorthoplan.api.schemas import PlanDocument
 from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.use_cases import GetImagePlan, SaveImagePlan
 from vetorthoplan.bootstrap import create_app
@@ -17,7 +18,7 @@ CASE_ID = UUID("00000000-0000-4000-8000-000000000803")
 IMAGE_ID = UUID("00000000-0000-4000-8000-000000000804")
 UPLOAD_ID = UUID("00000000-0000-4000-8000-000000000805")
 NOW = datetime(2026, 10, 16, 12, 0, tzinfo=UTC)
-DOCUMENT = {"schema_version": 1, "calibration": None, "objects": []}
+DOCUMENT = {"schema_version": 1, "calibration": None, "tplo": None, "objects": []}
 
 
 def ready_image() -> ImageUpload:
@@ -132,3 +133,32 @@ def test_openapi_documents_get_and_put_plan_contracts() -> None:
     assert "200" in plan_path["get"]["responses"]
     assert "200" in plan_path["put"]["responses"]
     assert "409" in plan_path["put"]["responses"]
+
+
+def test_plan_calibration_accepts_reference_circle_and_rejects_missing_diameter() -> None:
+    document = PlanDocument.model_validate(
+        {
+            "schema_version": 1,
+            "calibration": {
+                "kind": "REFERENCE_CIRCLE",
+                "center": {"x": 0.5, "y": 0.5},
+                "edge": {"x": 0.6, "y": 0.5},
+                "known_diameter_mm": 25,
+            },
+            "objects": [],
+        }
+    )
+    assert document.calibration.kind == "REFERENCE_CIRCLE"
+
+    with pytest.raises(ValueError):
+        PlanDocument.model_validate(
+            {
+                "schema_version": 1,
+                "calibration": {
+                    "kind": "REFERENCE_CIRCLE",
+                    "center": {"x": 0.5, "y": 0.5},
+                    "edge": {"x": 0.6, "y": 0.5},
+                },
+                "objects": [],
+            }
+        )

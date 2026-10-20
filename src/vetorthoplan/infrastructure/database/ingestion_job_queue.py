@@ -53,6 +53,36 @@ class SqlAlchemyIngestionJobQueue:
         model = await self._session.scalar(statement)
         return self._to_domain(model) if model else None
 
+    async def lock_by_id(self, tenant_id: UUID, job_id: UUID) -> IngestionJob | None:
+        model = await self._session.scalar(
+            select(IngestionJobModel)
+            .where(
+                IngestionJobModel.tenant_id == tenant_id,
+                IngestionJobModel.id == job_id,
+            )
+            .with_for_update()
+        )
+        return self._to_domain(model) if model else None
+
+    async def get_by_image_id(self, tenant_id: UUID, image_id: UUID) -> IngestionJob | None:
+        statement = select(IngestionJobModel).where(
+            IngestionJobModel.tenant_id == tenant_id,
+            IngestionJobModel.image_id == image_id,
+        )
+        model = await self._session.scalar(statement)
+        return self._to_domain(model) if model else None
+
+    async def lock_by_image_id(self, tenant_id: UUID, image_id: UUID) -> IngestionJob | None:
+        model = await self._session.scalar(
+            select(IngestionJobModel)
+            .where(
+                IngestionJobModel.tenant_id == tenant_id,
+                IngestionJobModel.image_id == image_id,
+            )
+            .with_for_update()
+        )
+        return self._to_domain(model) if model else None
+
     async def claim_next(self, now: datetime) -> IngestionJob | None:
         statement = (
             select(IngestionJobModel)

@@ -36,7 +36,12 @@ class PresignedReadTarget:
 
 
 class UploadStorage(Protocol):
-    def create_presigned_post(self, upload: ImageUpload) -> PresignedUploadTarget: ...
+    def create_presigned_post(
+        self,
+        upload: ImageUpload,
+        *,
+        expires_in_seconds: int | None = None,
+    ) -> PresignedUploadTarget: ...
 
     async def inspect_uploaded_object(self, upload: ImageUpload) -> StoredUploadObject | None: ...
 
@@ -50,3 +55,5 @@ class UploadStorage(Protocol):
     ) -> StoredPreviewObject: ...
 
     def create_presigned_get(self, object_key: str, now: datetime) -> PresignedReadTarget: ...
+
+    async def delete_object(self, object_key: str) -> None: ...

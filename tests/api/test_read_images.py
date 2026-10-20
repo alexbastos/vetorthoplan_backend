@@ -43,11 +43,15 @@ def ready_image() -> ImageUpload:
         detected_media_type="image/png",
         width_px=640,
         height_px=480,
-        metadata={},
         preview_object_key="derived/test/preview.png",
         preview_media_type="image/png",
         preview_width_px=640,
         preview_height_px=480,
+        metadata={
+            "pixel_spacing": "0.14\\0.15",
+            "imager_pixel_spacing": "0.16\\0.17",
+            "image_orientation_patient": "1\\0\\0\\0\\1\\0",
+        },
         processed_at=NOW,
     )
 
@@ -82,6 +86,13 @@ class StubGetJob:
         assert job_id == JOB_ID
         return succeeded_job()
 
+    async def execute_for_image(
+        self, image_id: UUID, context: TenantContext
+    ) -> IngestionJob | None:
+        assert image_id == IMAGE_ID
+        assert context.tenant_id == TENANT_ID
+        return succeeded_job()
+
 
 def build_app():
     app = create_app()
@@ -103,8 +114,12 @@ async def test_list_case_images_returns_processing_metadata() -> None:
     assert response.status_code == 200
     image = response.json()["items"][0]
     assert image["id"] == str(IMAGE_ID)
+    assert image["job_id"] == str(JOB_ID)
     assert image["status"] == "READY"
     assert (image["width_px"], image["height_px"]) == (640, 480)
+    assert image["pixel_spacing_mm"] == [0.14, 0.15]
+    assert image["imager_pixel_spacing_mm"] == [0.16, 0.17]
+    assert image["image_orientation_patient"] == [1, 0, 0, 0, 1, 0]
 
 
 @pytest.mark.asyncio
@@ -120,8 +135,18 @@ async def test_get_job_returns_terminal_state() -> None:
 
 
 def test_openapi_documents_img_02_queries() -> None:
-    paths = create_app().openapi()["paths"]
+    schema = create_app().openapi()
+    paths = schema["paths"]
 
     assert "/api/v1/jobs/{job_id}" in paths
     assert "/api/v1/cases/{case_id}/images" in paths
     assert "/api/v1/images/{image_id}" in paths
+    assert "job_id" in schema["components"]["schemas"]["ImageResponse"]["required"]
+    assert "202" in paths["/api/v1/jobs/{job_id}/retry"]["post"]["responses"]
+
+
+def test_image_response_allows_missing_job_until_confirmation() -> None:
+    from vetorthoplan.api.schemas import ImageResponse
+
+    response = ImageResponse.from_domain(ready_image())
+    assert response.job_id is None

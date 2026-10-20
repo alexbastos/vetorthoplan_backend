@@ -7,7 +7,7 @@ from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.errors import CaseNotFoundError
 from vetorthoplan.application.ports import CaseCursor, CasePage
 from vetorthoplan.application.use_cases import GetCase, ListCases, ListCasesQuery
-from vetorthoplan.domain.cases import Case, CaseStatus
+from vetorthoplan.domain.cases import BiologicalSex, Case, CaseStatus
 
 CASE_ID = UUID("00000000-0000-4000-8000-000000000050")
 TENANT_ID = UUID("00000000-0000-4000-8000-000000000051")
@@ -23,6 +23,7 @@ def make_case() -> Case:
         title="Planejamento TPLO",
         animal_name="Paciente sintético",
         species="Canina",
+        sex=BiologicalSex.UNKNOWN,
         now=NOW,
     )
 

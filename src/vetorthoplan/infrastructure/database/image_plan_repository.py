@@ -57,6 +57,15 @@ class SqlAlchemyImagePlanRepository:
         await self._session.flush()
         return plan if result.rowcount == 1 else None
 
+    async def delete(self, tenant_id: UUID, image_id: UUID) -> None:
+        await self._session.execute(
+            ImagePlanModel.__table__.delete().where(
+                ImagePlanModel.tenant_id == tenant_id,
+                ImagePlanModel.image_id == image_id,
+            )
+        )
+        await self._session.flush()
+
     @staticmethod
     def _to_domain(model: ImagePlanModel) -> ImagePlan:
         return ImagePlan(

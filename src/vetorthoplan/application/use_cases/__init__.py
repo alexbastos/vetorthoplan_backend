@@ -1,3 +1,4 @@
+from vetorthoplan.application.use_cases.cancel_image_upload import CancelImageUpload
 from vetorthoplan.application.use_cases.complete_image_upload import (
     CompletedImageUpload,
     CompleteImageUpload,
@@ -8,6 +9,7 @@ from vetorthoplan.application.use_cases.create_image_upload import (
     CreateImageUpload,
     CreateImageUploadCommand,
 )
+from vetorthoplan.application.use_cases.delete_image import DeleteImage
 from vetorthoplan.application.use_cases.get_case import GetCase
 from vetorthoplan.application.use_cases.get_image_preview import GetImagePreview, ImagePreview
 from vetorthoplan.application.use_cases.get_ingestion_job import GetIngestionJob
@@ -22,6 +24,7 @@ from vetorthoplan.application.use_cases.process_image_ingestion import (
     ProcessNextImageIngestion,
 )
 from vetorthoplan.application.use_cases.read_images import GetImage, ListCaseImages
+from vetorthoplan.application.use_cases.retry_ingestion_job import RetryIngestionJob
 
 __all__ = [
     "CreatedImageUpload",
@@ -31,6 +34,8 @@ __all__ = [
     "CreateImageUpload",
     "CreateImageUploadCommand",
     "CompleteImageUpload",
+    "CancelImageUpload",
+    "DeleteImage",
     "GetCase",
     "GetImage",
     "GetIngestionJob",
@@ -44,4 +49,5 @@ __all__ = [
     "SaveImagePlan",
     "ProcessedImageIngestion",
     "ProcessNextImageIngestion",
+    "RetryIngestionJob",
 ]

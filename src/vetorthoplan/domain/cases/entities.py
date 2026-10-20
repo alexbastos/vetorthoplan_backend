@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from calendar import monthrange
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -28,6 +29,11 @@ class BiologicalSex(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class AgeSource(StrEnum):
+    DECLARED = "DECLARED"
+    BIRTH_DATE = "BIRTH_DATE"
+
+
 @dataclass(frozen=True, slots=True)
 class Case:
     id: UUID
@@ -39,6 +45,8 @@ class Case:
     sex: BiologicalSex | None
     birth_date: date | None
     approximate_age_months: int | None
+    age_source: AgeSource | None
+    age_reference_date: date | None
     weight_kg: Decimal | None
     clinical_notes: str | None
     status: CaseStatus
@@ -60,6 +68,8 @@ class Case:
         sex: BiologicalSex | None = None,
         birth_date: date | None = None,
         approximate_age_months: int | None = None,
+        age_source: AgeSource | None = None,
+        age_reference_date: date | None = None,
         weight_kg: Decimal | None = None,
         clinical_notes: str | None = None,
         now: datetime | None = None,
@@ -82,11 +92,8 @@ class Case:
         if timestamp.tzinfo is None:
             raise CaseValidationError("O relógio deve produzir horário com timezone.")
 
-        if birth_date is not None and approximate_age_months is not None:
-            raise CaseValidationError(
-                "Informe birth_date ou approximate_age_months, não ambos.",
-                field="approximate_age_months",
-            )
+        if sex is None:
+            raise CaseValidationError("sex é obrigatório.", field="sex")
 
         today = timestamp.date()
         if birth_date is not None and birth_date > today:
@@ -103,6 +110,27 @@ class Case:
                 "approximate_age_months deve ser menor ou igual a 600.",
                 field="approximate_age_months",
             )
+
+        reference_date = timestamp.date()
+        if birth_date is not None:
+            calculated_age = cls._months_completed(birth_date, reference_date)
+            if calculated_age > 600:
+                raise CaseValidationError(
+                    "A idade calculada deve ser menor ou igual a 600 meses.",
+                    field="approximate_age_months",
+                )
+            if approximate_age_months is not None and approximate_age_months != calculated_age:
+                raise CaseValidationError(
+                    "A idade informada não corresponde à data de nascimento na data de criação do caso.",
+                    field="approximate_age_months",
+                )
+            approximate_age_months = calculated_age
+            age_source = AgeSource.BIRTH_DATE
+        elif approximate_age_months is not None:
+            age_source = AgeSource.DECLARED
+        else:
+            age_source = None
+        age_reference_date = reference_date if age_source is not None else None
 
         if weight_kg is not None and weight_kg <= 0:
             raise CaseValidationError("weight_kg deve ser maior que zero.", field="weight_kg")
@@ -123,6 +151,8 @@ class Case:
             sex=sex,
             birth_date=birth_date,
             approximate_age_months=approximate_age_months,
+            age_source=age_source,
+            age_reference_date=age_reference_date,
             weight_kg=weight_kg,
             clinical_notes=normalized_notes,
             status=CaseStatus.DRAFT,
@@ -130,6 +160,14 @@ class Case:
             created_at=timestamp,
             updated_at=timestamp,
         )
+
+    @staticmethod
+    def _months_completed(birth_date: date, reference_date: date) -> int:
+        months = (reference_date.year - birth_date.year) * 12 + reference_date.month - birth_date.month
+        anniversary_day = min(birth_date.day, monthrange(reference_date.year, reference_date.month)[1])
+        if reference_date.day < anniversary_day:
+            months -= 1
+        return months
 
     @staticmethod
     def _required_text(value: str, *, field: str, max_length: int) -> str:

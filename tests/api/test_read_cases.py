@@ -9,7 +9,7 @@ from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.ports import CaseCursor, CasePage
 from vetorthoplan.application.use_cases import GetCase, ListCases
 from vetorthoplan.bootstrap import create_app
-from vetorthoplan.domain.cases import Case, CaseStatus
+from vetorthoplan.domain.cases import BiologicalSex, Case, CaseStatus
 
 TENANT_ID = UUID("00000000-0000-4000-8000-000000000061")
 OTHER_TENANT_ID = UUID("00000000-0000-4000-8000-000000000062")
@@ -28,6 +28,7 @@ def make_case(case_id: UUID, tenant_id: UUID, title: str, created_at: datetime) 
         title=title,
         animal_name=f"Animal {case_id.int % 100}",
         species="Canina",
+        sex=BiologicalSex.UNKNOWN,
         now=created_at,
     )
 

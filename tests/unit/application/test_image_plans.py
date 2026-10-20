@@ -16,7 +16,7 @@ CASE_ID = UUID("00000000-0000-4000-8000-000000000703")
 IMAGE_ID = UUID("00000000-0000-4000-8000-000000000704")
 UPLOAD_ID = UUID("00000000-0000-4000-8000-000000000705")
 PLAN_ID = UUID("00000000-0000-4000-8000-000000000706")
-DOCUMENT = {"schema_version": 1, "calibration": None, "objects": []}
+DOCUMENT = {"schema_version": 1, "calibration": None, "tplo": None, "objects": []}
 
 
 def ready_image() -> ImageUpload:

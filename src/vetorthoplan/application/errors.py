@@ -20,6 +20,11 @@ class ImageUploadLimitExceededError(ValueError):
         self.limit = limit
 
 
+class ImageUploadIdempotencyConflictError(ValueError):
+    def __init__(self) -> None:
+        super().__init__("A chave de idempotência da sessão já foi usada com outros metadados.")
+
+
 class ImageUploadNotFoundError(LookupError):
     def __init__(self, upload_id: UUID) -> None:
         super().__init__("Sessão de upload não encontrada.")
@@ -29,6 +34,24 @@ class ImageUploadNotFoundError(LookupError):
 class ImageUploadExpiredError(ValueError):
     def __init__(self, upload_id: UUID) -> None:
         super().__init__("A sessão expirou antes do envio do arquivo.")
+        self.upload_id = upload_id
+
+
+class ImageUploadCancelledError(ValueError):
+    def __init__(self, upload_id: UUID) -> None:
+        super().__init__("A sessão de upload foi cancelada.")
+        self.upload_id = upload_id
+
+
+class ImageUploadSessionNotPendingError(ValueError):
+    def __init__(self, upload_id: UUID) -> None:
+        super().__init__("A sessão idempotente já avançou; não será emitida outra URL de upload.")
+        self.upload_id = upload_id
+
+
+class ImageUploadCancellationConflictError(ValueError):
+    def __init__(self, upload_id: UUID) -> None:
+        super().__init__("Somente sessões de upload pendentes podem ser canceladas.")
         self.upload_id = upload_id
 
 
@@ -53,6 +76,14 @@ class ImageNotFoundError(LookupError):
         self.image_id = image_id
 
 
+class ImageDeletionConflictError(ValueError):
+    def __init__(self, image_id: UUID) -> None:
+        super().__init__(
+            "Não é possível excluir durante upload ativo ou job QUEUED/PROCESSING."
+        )
+        self.image_id = image_id
+
+
 class ImagePreviewUnavailableError(ValueError):
     def __init__(self, image_id: UUID) -> None:
         super().__init__("A prévia da imagem ainda não está disponível.")
@@ -74,6 +105,12 @@ class PlanRevisionConflictError(ValueError):
 class IngestionJobNotFoundError(LookupError):
     def __init__(self, job_id: UUID) -> None:
         super().__init__("Job de ingestão não encontrado.")
+        self.job_id = job_id
+
+
+class IngestionJobRetryNotAllowedError(ValueError):
+    def __init__(self, job_id: UUID) -> None:
+        super().__init__("Somente jobs FAILED podem ser reenfileirados manualmente.")
         self.job_id = job_id
 
 

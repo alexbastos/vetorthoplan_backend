@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     storage_bucket: str = "vetorthoplan-uploads-local"
     storage_region: str = "us-east-1"
     storage_endpoint_url: str | None = None
+    storage_public_endpoint_url: str | None = None
     upload_url_expires_seconds: int = Field(default=300, ge=60, le=900)
     preview_url_expires_seconds: int = Field(default=300, ge=60, le=900)
     storage_clock_skew_seconds: float = Field(default=5.0, ge=0, le=60)

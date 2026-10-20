@@ -11,6 +11,7 @@ SERVICE_NAME="vetorthoplan-api"
 SERVICE_USER="${SUDO_USER:-${USER}}"
 API_HOST="${API_HOST:-127.0.0.1}"
 API_PORT="${API_PORT:-8000}"
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-}"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   cat <<'EOF'
@@ -136,5 +137,9 @@ if command -v apache2ctl >/dev/null 2>&1; then
 fi
 
 printf '\nCorreção concluída. Swagger local: http://127.0.0.1:%s/docs\n' "$API_PORT"
-printf 'Para SSH tunnel: ssh -N -L %s:127.0.0.1:%s %s@SERVIDOR\n' "$API_PORT" "$API_PORT" "$SERVICE_USER"
+if [[ -n "$PUBLIC_BASE_URL" ]]; then
+  printf 'API pública via HTTPS/Apache: %s/api/v1\n' "${PUBLIC_BASE_URL%/}"
+else
+  printf 'A API permanece em %s:%s; configure o proxy HTTPS do Apache para acesso direto.\n' "$API_HOST" "$API_PORT"
+fi
 printf 'Migrations continuam manuais: %s/bin/alembic upgrade head\n' "$VENV_DIR"

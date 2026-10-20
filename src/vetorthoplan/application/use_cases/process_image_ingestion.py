@@ -70,10 +70,7 @@ class ProcessNextImageIngestion:
             )
         except Exception:
             failed = job.fail(finished_at=self._clock.now(), error_code="processing_failed")
-            failed_image = upload.reject(
-                rejection_code="processing_failed",
-                processed_at=self._clock.now(),
-            )
+            failed_image = upload.fail(processed_at=self._clock.now())
             return ProcessedImageIngestion(
                 job=await self._job_queue.save(failed),
                 image=await self._upload_repository.save(failed_image),

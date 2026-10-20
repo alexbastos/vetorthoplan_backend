@@ -33,8 +33,11 @@ def dicom_content() -> bytes:
         + explicit_element(0x0008, 0x0060, b"CS", b"DX")
         + explicit_element(0x0028, 0x0002, b"US", struct.pack("<H", 1))
         + explicit_element(0x0028, 0x0004, b"CS", b"MONOCHROME2")
+        + explicit_element(0x0020, 0x0037, b"DS", b"1\\0\\0\\0\\1\\0")
+        + explicit_element(0x0018, 0x1164, b"DS", b"0.14\\0.14")
         + explicit_element(0x0028, 0x0010, b"US", struct.pack("<H", 2))
         + explicit_element(0x0028, 0x0011, b"US", struct.pack("<H", 2))
+        + explicit_element(0x0028, 0x0030, b"DS", b"0.15\\0.16")
         + explicit_element(0x0028, 0x0100, b"US", struct.pack("<H", 8))
         + explicit_element(0x0028, 0x0101, b"US", struct.pack("<H", 8))
         + explicit_element(0x0028, 0x0103, b"US", struct.pack("<H", 0))
@@ -64,6 +67,9 @@ def test_inspector_parses_uncompressed_dicom_and_generates_preview() -> None:
     assert inspected.media_type == "application/dicom"
     assert (inspected.width_px, inspected.height_px) == (2, 2)
     assert inspected.metadata["modality"] == "DX"
+    assert inspected.metadata["pixel_spacing"] == "0.15\\0.16"
+    assert inspected.metadata["imager_pixel_spacing"] == "0.14\\0.14"
+    assert inspected.metadata["image_orientation_patient"] == "1\\0\\0\\0\\1\\0"
     assert inspected.preview_content.startswith(b"\x89PNG")
 
 

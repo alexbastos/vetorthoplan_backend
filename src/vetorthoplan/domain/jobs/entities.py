@@ -78,6 +78,19 @@ class IngestionJob:
     def fail(self, *, finished_at: datetime, error_code: str) -> IngestionJob:
         return self._finish(IngestionJobStatus.FAILED, finished_at, error_code)
 
+    def retry(self, *, retried_at: datetime) -> IngestionJob:
+        self._require_timezone(retried_at)
+        if self.status != IngestionJobStatus.FAILED:
+            raise ValueError("Somente jobs com falha operacional podem ser reenfileirados.")
+        return replace(
+            self,
+            status=IngestionJobStatus.QUEUED,
+            updated_at=retried_at,
+            started_at=None,
+            finished_at=None,
+            error_code=None,
+        )
+
     def _finish(
         self,
         status: IngestionJobStatus,

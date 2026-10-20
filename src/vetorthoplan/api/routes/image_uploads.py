@@ -1,8 +1,9 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response, status
 
 from vetorthoplan.api.dependencies import (
+    CancelImageUploadDependency,
     CompleteImageUploadDependency,
     TenantContextDependency,
 )
@@ -51,3 +52,25 @@ async def complete_image_upload(
         job_id=result.ingestion_job.id,
         job_status=result.ingestion_job.status,
     )
+
+
+@router.delete(
+    "/{upload_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Cancelar sessão de upload",
+    description=(
+        "Cancela a sessão PENDING_UPLOAD e remove o objeto atual. A URL pré-assinada não pode "
+        "ser revogada; uploads tardios são removidos pela rotina de limpeza após expires_at."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Sessão não encontrada"},
+        409: {"model": ErrorResponse, "description": "Sessão já confirmada ou em processamento"},
+    },
+)
+async def cancel_image_upload(
+    upload_id: UUID,
+    context: TenantContextDependency,
+    use_case: CancelImageUploadDependency,
+) -> Response:
+    await use_case.execute(upload_id, context)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

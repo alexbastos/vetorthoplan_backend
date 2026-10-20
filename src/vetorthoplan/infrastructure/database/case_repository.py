@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from vetorthoplan.application.errors import IdempotencyKeyConflictError
 from vetorthoplan.application.ports import CaseCursor, CasePage
-from vetorthoplan.domain.cases import BiologicalSex, Case, CaseStatus
+from vetorthoplan.domain.cases import AgeSource, BiologicalSex, Case, CaseStatus
 from vetorthoplan.infrastructure.database.models import CaseIdempotencyModel, CaseModel
 
 
@@ -25,6 +25,8 @@ class SqlAlchemyCaseRepository:
             sex=case.sex.value if case.sex else None,
             birth_date=case.birth_date,
             approximate_age_months=case.approximate_age_months,
+            age_source=case.age_source.value if case.age_source else None,
+            age_reference_date=case.age_reference_date,
             weight_kg=case.weight_kg,
             clinical_notes=case.clinical_notes,
             status=case.status.value,
@@ -169,6 +171,8 @@ class SqlAlchemyCaseRepository:
             sex=BiologicalSex(model.sex) if model.sex else None,
             birth_date=model.birth_date,
             approximate_age_months=model.approximate_age_months,
+            age_source=AgeSource(model.age_source) if model.age_source else None,
+            age_reference_date=model.age_reference_date,
             weight_kg=model.weight_kg,
             clinical_notes=model.clinical_notes,
             status=CaseStatus(model.status),

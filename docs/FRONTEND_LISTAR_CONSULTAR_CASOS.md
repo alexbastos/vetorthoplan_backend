@@ -2,7 +2,7 @@
 
 > Escopo: segundo vertical slice do módulo de casos.  
 > Endpoints: `GET /api/v1/cases` e `GET /api/v1/cases/{case_id}`.  
-> Contrato publicado: OpenAPI `0.8.0`.
+> Contrato local: OpenAPI `0.9.0`; `cecia.ufsj.edu.br` ainda publica `0.8.0`.
 
 ![Referência visual para lista e detalhe de casos](frontend/casos-listagem-detalhe-v2.png)
 

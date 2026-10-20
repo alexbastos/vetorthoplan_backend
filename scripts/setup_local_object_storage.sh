@@ -73,6 +73,11 @@ if [[ ! "$STORAGE_BUCKET" =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]]; then
   printf 'Nome de bucket inválido: use letras minúsculas, números, ponto ou hífen.\n' >&2
   exit 1
 fi
+FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-}"
+if [[ -n "$FRONTEND_ORIGIN" && ! "$FRONTEND_ORIGIN" =~ ^https?://[^/]+$ ]]; then
+  printf 'FRONTEND_ORIGIN deve conter somente esquema e host, sem caminho.\n' >&2
+  exit 1
+fi
 
 APP_ENV="$(env_value APP_ENV)"
 if [[ "$APP_ENV" == "production" || "$APP_ENV" == "staging" ]]; then
@@ -83,8 +88,8 @@ fi
 AWS_ACCESS_KEY_ID="$(env_value AWS_ACCESS_KEY_ID)"
 AWS_SECRET_ACCESS_KEY="$(env_value AWS_SECRET_ACCESS_KEY)"
 if [[ ! "$AWS_ACCESS_KEY_ID" =~ ^vop[0-9a-f]{16}$ || -z "$AWS_SECRET_ACCESS_KEY" ]]; then
-  AWS_ACCESS_KEY_ID="test"
-  AWS_SECRET_ACCESS_KEY="test"
+  AWS_ACCESS_KEY_ID="vop$(random_hex 8)"
+  AWS_SECRET_ACCESS_KEY="$(random_hex 32)"
 fi
 
 set_env_value STORAGE_BUCKET "$STORAGE_BUCKET"
@@ -149,6 +154,36 @@ except ClientError as error:
 print(bucket)
 PY
 
+if [[ -n "$FRONTEND_ORIGIN" ]]; then
+  AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+  STORAGE_BUCKET="$STORAGE_BUCKET" FRONTEND_ORIGIN="$FRONTEND_ORIGIN" \
+  "$VENV_DIR/bin/python" - <<'PY'
+import os
+import boto3
+
+client = boto3.client(
+    "s3",
+    endpoint_url="http://127.0.0.1:9000",
+    region_name="us-east-1",
+    aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+    aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+)
+client.put_bucket_cors(
+    Bucket=os.environ["STORAGE_BUCKET"],
+    CORSConfiguration={"CORSRules": [{
+        "AllowedOrigins": [os.environ["FRONTEND_ORIGIN"]],
+        "AllowedMethods": ["POST", "GET", "HEAD"],
+        "AllowedHeaders": ["*"],
+        "ExposeHeaders": ["ETag", "x-amz-checksum-sha256"],
+        "MaxAgeSeconds": 3600,
+    }]},
+)
+print("CORS configurado para", os.environ["FRONTEND_ORIGIN"])
+PY
+else
+  printf 'FRONTEND_ORIGIN não informado; CORS não foi configurado.\n'
+fi
+
 restart_if_installed() {
   local service="$1"
   if sudo systemctl cat "$service" >/dev/null 2>&1; then
@@ -171,5 +206,8 @@ restart_if_installed vetorthoplan-worker.service
 printf '\nStorage local configurado.\n'
 printf 'Bucket: %s\n' "$STORAGE_BUCKET"
 printf 'Endpoint interno: http://127.0.0.1:9000\n'
+SIGNED_STORAGE_ENDPOINT="$(env_value STORAGE_PUBLIC_ENDPOINT_URL)"
+SIGNED_STORAGE_ENDPOINT="${SIGNED_STORAGE_ENDPOINT:-http://127.0.0.1:9000}"
+printf 'Endpoint usado nas URLs assinadas: %s\n' "$SIGNED_STORAGE_ENDPOINT"
 printf 'As credenciais foram gravadas em %s com permissão 600; não foram exibidas.\n' "$ENV_FILE"
 printf 'Próximo passo: execute scripts/smoke_image_ingestion.py no próprio servidor.\n'

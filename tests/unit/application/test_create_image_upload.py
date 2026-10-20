@@ -7,7 +7,7 @@ from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.errors import CaseNotFoundError, ImageUploadLimitExceededError
 from vetorthoplan.application.ports import PresignedUploadTarget
 from vetorthoplan.application.use_cases import CreateImageUpload, CreateImageUploadCommand
-from vetorthoplan.domain.cases import Case
+from vetorthoplan.domain.cases import BiologicalSex, Case
 from vetorthoplan.domain.imaging import ImageUpload
 
 UPLOAD_ID = UUID("00000000-0000-4000-8000-000000000111")
@@ -30,6 +30,7 @@ class CaseRepository:
             title="TPLO",
             animal_name="Paciente sintético",
             species="Canina",
+            sex=BiologicalSex.UNKNOWN,
             now=NOW,
         )
 
@@ -47,13 +48,22 @@ class UploadRepository:
     ) -> int:
         return self.count
 
+    async def get_by_idempotency_key(self, tenant_id, actor_id, key_hash):
+        return None
+
+    async def add_idempotently(self, upload, *, key_hash, request_hash):
+        self.uploads.append(upload)
+        return upload
+
     async def add(self, upload: ImageUpload) -> ImageUpload:
         self.uploads.append(upload)
         return upload
 
 
 class Storage:
-    def create_presigned_post(self, upload: ImageUpload) -> PresignedUploadTarget:
+    def create_presigned_post(
+        self, upload: ImageUpload, *, expires_in_seconds: int = 300
+    ) -> PresignedUploadTarget:
         return PresignedUploadTarget(
             method="POST",
             url="https://storage.example/upload",
@@ -102,6 +112,7 @@ async def test_create_image_upload_is_tenant_scoped_and_uses_quarantine_key() ->
         CASE_ID,
         command(),
         TenantContext(tenant_id=TENANT_ID, actor_id=ACTOR_ID),
+        idempotency_key="create-upload-1",
     )
 
     assert result.upload.id == UPLOAD_ID
@@ -118,6 +129,7 @@ async def test_create_image_upload_hides_case_from_other_tenant() -> None:
             CASE_ID,
             command(),
             TenantContext(tenant_id=OTHER_TENANT_ID, actor_id=ACTOR_ID),
+            idempotency_key="create-upload-2",
         )
 
 
@@ -128,4 +140,5 @@ async def test_create_image_upload_enforces_case_limit() -> None:
             CASE_ID,
             command(),
             TenantContext(tenant_id=TENANT_ID, actor_id=ACTOR_ID),
+            idempotency_key="create-upload-3",
         )

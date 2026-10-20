@@ -1,8 +1,10 @@
 # Frontend — criar sessão de upload de radiografia
 
-> Escopo: primeiro slice do módulo Imaging (`IMG-01`).  
-> Endpoint disponível: `POST /api/v1/cases/{case_id}/image-uploads`.  
-> Contrato publicado: OpenAPI `0.8.0`.
+> Escopo: primeiro slice do módulo Imaging (`IMG-01`).
+> Endpoint no código local: `POST /api/v1/cases/{case_id}/image-uploads`.
+> Contrato local: OpenAPI `0.9.0`; `cecia.ufsj.edu.br` ainda publica `0.8.0`.
+
+Envie `Idempotency-Key` em toda criação de sessão. Repetir a chave com os mesmos metadados recupera o mesmo `upload_id` e `image_id`; uma chave com outros metadados retorna `409 IMAGE_UPLOAD_IDEMPOTENCY_KEY_REUSED`. A sessão e a URL assinada mantêm a expiração original.
 > Referência visual: `docs/frontend/upload-radiografia-v1.png`.
 
 ![Referência visual do upload de radiografia](frontend/upload-radiografia-v1.png)
@@ -60,7 +62,7 @@ Regras publicadas:
 
 O limite inicial é de 20 sessões não expiradas por caso. A URL expira em cinco minutos por padrão.
 
-A criação da sessão não é idempotente. Se a resposta `201` se perder, crie outra sessão e gere uma nova assinatura; a sessão abandonada continua contando para o limite até expirar. Uma URL expirada não pode ser reutilizada. Após o limite, aguarde a expiração das sessões abandonadas e tente novamente. Depois de um reload, `GET /api/v1/cases/{case_id}/images` é a fonte de recuperação: `PENDING_UPLOAD` indica envio não confirmado e não deve gerar polling contínuo; o usuário pode iniciar uma sessão nova.
+A criação da sessão é idempotente por tenant, usuário e `Idempotency-Key`. Repetir a chave com o mesmo caso e os mesmos metadados devolve a sessão existente e uma nova assinatura limitada ao prazo de expiração original. A chave não expira enquanto o registro da sessão existir; após a limpeza do registro expirado, a chave pode ser reutilizada. Se a resposta `201` se perder, repita a requisição com a mesma chave. Uma sessão expirada exige uma chave nova. Depois do limite de sessões ativas, cancele uma sessão ainda pendente ou aguarde sua expiração; após reload, `GET /api/v1/cases/{case_id}/images` recupera os estados e o `job_id` associado.
 
 O navegador precisa enviar o `POST multipart/form-data` à origem indicada por `upload.url`, incluindo todos os campos assinados e o arquivo por último. Não defina o header `Content-Type` manualmente e não siga redirecionamentos. A infraestrutura de cada ambiente deve permitir a origem exata do frontend e os métodos/headers necessários via CORS; os valores de origem e a resposta de sucesso são configurações do storage por ambiente.
 

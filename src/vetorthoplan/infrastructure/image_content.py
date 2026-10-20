@@ -154,7 +154,8 @@ class BasicImageContentInspector:
         wanted_tags = {
             (0x0008, 0x0020), (0x0008, 0x0060), (0x0018, 0x0015), (0x0020, 0x0060),
             (0x0028, 0x0002), (0x0028, 0x0004), (0x0028, 0x0008), (0x0028, 0x0010),
-            (0x0028, 0x0011), (0x0028, 0x0100), (0x0028, 0x0101), (0x0028, 0x0103),
+            (0x0020, 0x0037), (0x0028, 0x0011), (0x0028, 0x0030),
+            (0x0018, 0x1164), (0x0028, 0x0100), (0x0028, 0x0101), (0x0028, 0x0103),
             (0x0028, 0x1050), (0x0028, 0x1051), (0x0028, 0x1052), (0x0028, 0x1053),
             (0x7FE0, 0x0010),
         }
@@ -203,10 +204,13 @@ class BasicImageContentInspector:
             "modality": (0x0008, 0x0060),
             "body_part_examined": (0x0018, 0x0015),
             "laterality": (0x0020, 0x0060),
+            "pixel_spacing": (0x0028, 0x0030),
+            "imager_pixel_spacing": (0x0018, 0x1164),
+            "image_orientation_patient": (0x0020, 0x0037),
         }.items():
             value = self._decode_text(values.get(tag, b""))
             if value:
-                metadata[key] = value[:64]
+                metadata[key] = value[:128]
 
         return _DicomDataset(
             columns=columns,

@@ -50,8 +50,8 @@ class CaseModel(Base):
             name="ck_clinical_cases_weight_maximum",
         ),
         CheckConstraint(
-            "birth_date IS NULL OR approximate_age_months IS NULL",
-            name="ck_clinical_cases_single_age_source",
+            "age_source IS NULL OR age_source IN ('DECLARED', 'BIRTH_DATE')",
+            name="ck_clinical_cases_age_source",
         ),
         Index("ix_clinical_cases_tenant_created_at", "tenant_id", "created_at"),
         Index("ix_clinical_cases_tenant_status", "tenant_id", "status"),
@@ -66,6 +66,8 @@ class CaseModel(Base):
     sex: Mapped[str | None] = mapped_column(String(20), nullable=True)
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     approximate_age_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    age_source: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    age_reference_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(7, 2), nullable=True)
     clinical_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -105,7 +107,8 @@ class ImageUploadModel(Base):
             name="ck_image_uploads_kind",
         ),
         CheckConstraint(
-            "status IN ('PENDING_UPLOAD', 'QUARANTINED', 'PROCESSING', 'READY', 'REJECTED')",
+            "status IN ('PENDING_UPLOAD', 'QUARANTINED', 'PROCESSING', 'READY', "
+            "'REJECTED', 'FAILED', 'CANCELLED')",
             name="ck_image_uploads_status",
         ),
         CheckConstraint(
@@ -113,6 +116,12 @@ class ImageUploadModel(Base):
             name="ck_image_uploads_size_range",
         ),
         UniqueConstraint("object_key", name="uq_image_uploads_object_key"),
+        UniqueConstraint(
+            "tenant_id",
+            "created_by",
+            "idempotency_key_hash",
+            name="uq_image_uploads_idempotency_scope",
+        ),
         Index("ix_image_uploads_tenant_case", "tenant_id", "case_id"),
         Index("ix_image_uploads_expires_at", "expires_at"),
     )
@@ -146,6 +155,8 @@ class ImageUploadModel(Base):
     preview_media_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     preview_width_px: Mapped[int | None] = mapped_column(Integer, nullable=True)
     preview_height_px: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    idempotency_key_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    request_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class IngestionJobModel(Base):

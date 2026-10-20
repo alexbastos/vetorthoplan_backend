@@ -1,3 +1,4 @@
+import math
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
@@ -5,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from vetorthoplan.domain.cases import BiologicalSex, Case, CaseStatus
+from vetorthoplan.domain.cases import AgeSource, BiologicalSex, Case, CaseStatus
 from vetorthoplan.domain.imaging import ImageKind, ImageUpload, ImageUploadStatus
 from vetorthoplan.domain.jobs import IngestionJob, IngestionJobStatus
 
@@ -30,13 +31,14 @@ class CreateCaseRequest(BaseModel):
     animal_name: str = Field(min_length=1, max_length=120, description="Nome ou código do animal")
     species: str = Field(min_length=1, max_length=80, description="Espécie do animal")
     breed: str | None = Field(default=None, max_length=120, description="Raça declarada")
-    sex: BiologicalSex | None = Field(default=None, description="Sexo biológico declarado")
+    sex: BiologicalSex = Field(description="Sexo biológico; UNKNOWN é aceito como valor explícito")
     birth_date: date | None = Field(default=None, description="Data de nascimento conhecida")
     approximate_age_months: int | None = Field(
         default=None,
         ge=0,
         le=600,
-        description="Idade aproximada em meses; não combinar com birth_date",
+        description=("Idade em meses completos na data de criação do caso. Pode acompanhar birth_date "
+                     "quando igual à idade calculada nessa data."),
     )
     weight_kg: Decimal | None = Field(
         default=None,
@@ -59,6 +61,12 @@ class CaseResponse(BaseModel):
     sex: BiologicalSex | None
     birth_date: date | None
     approximate_age_months: int | None
+    age_source: AgeSource | None = Field(
+        description="DECLARED ou BIRTH_DATE; nulo se idade desconhecida"
+    )
+    age_reference_date: date | None = Field(
+        description="Data usada como referência para approximate_age_months"
+    )
     weight_kg: Decimal | None
     clinical_notes: str | None
     status: CaseStatus
@@ -68,7 +76,13 @@ class CaseResponse(BaseModel):
 
     @classmethod
     def from_domain(cls, case: Case) -> "CaseResponse":
-        return cls(**{field: getattr(case, field) for field in cls.model_fields})
+        values = {field: getattr(case, field) for field in cls.model_fields}
+        if case.approximate_age_months is None and case.birth_date is not None:
+            reference_date = case.age_reference_date or case.created_at.date()
+            values["approximate_age_months"] = Case._months_completed(
+                case.birth_date, reference_date
+            )
+        return cls(**values)
 
 
 class CaseListItemResponse(BaseModel):
@@ -161,9 +175,32 @@ class CompletedImageUploadResponse(BaseModel):
     job_status: IngestionJobStatus
 
 
+def _parse_dicom_decimal_values(
+    metadata: dict[str, str] | None,
+    key: str,
+    *,
+    expected_count: int = 2,
+) -> tuple[float, ...] | None:
+    raw_value = (metadata or {}).get(key)
+    if not raw_value:
+        return None
+    try:
+        values = tuple(float(part) for part in raw_value.split("\\"))
+    except ValueError:
+        return None
+    if len(values) != expected_count or not all(math.isfinite(value) for value in values):
+        return None
+    if key in {"pixel_spacing", "imager_pixel_spacing"} and any(value <= 0 for value in values):
+        return None
+    return values
+
+
 class ImageResponse(BaseModel):
     id: UUID
     upload_id: UUID
+    job_id: UUID | None = Field(
+        description="Job de ingestão associado; nulo enquanto a confirmação ainda não criou o job"
+    )
     case_id: UUID
     original_filename: str
     kind: ImageKind
@@ -174,7 +211,14 @@ class ImageResponse(BaseModel):
     status: ImageUploadStatus
     width_px: int | None
     height_px: int | None
-    rejection_code: str | None
+    rejection_code: str | None = Field(
+        description=(
+            "Código estável de rejeição de conteúdo: empty_content, checksum_mismatch, "
+            "format_mismatch, malformed_image, dimensions_exceeded, "
+            "unsupported_transfer_syntax, unsupported_dicom_pixels, malformed_dicom ou "
+            "unsupported_dicom_structure. Códigos e mensagens: docs/FRONTEND_PROCESSAMENTO_IMAGENS.md."
+        )
+    )
     created_at: datetime
     completed_at: datetime | None
     processed_at: datetime | None
@@ -182,12 +226,22 @@ class ImageResponse(BaseModel):
     preview_available: bool
     preview_width_px: int | None
     preview_height_px: int | None
+    pixel_spacing_mm: tuple[float, float] | None = Field(
+        description="Espaçamento DICOM [linhas, colunas] em milímetros, quando informado e válido"
+    )
+    imager_pixel_spacing_mm: tuple[float, float] | None = Field(
+        description="Imager Pixel Spacing DICOM [linhas, colunas] em milímetros, quando válido"
+    )
+    image_orientation_patient: tuple[float, float, float, float, float, float] | None = Field(
+        description="Cossenos direcionais DICOM da primeira e segunda linhas de pixels"
+    )
 
     @classmethod
-    def from_domain(cls, image: ImageUpload) -> "ImageResponse":
+    def from_domain(cls, image: ImageUpload, *, job_id: UUID | None = None) -> "ImageResponse":
         return cls(
             id=image.image_id,
             upload_id=image.id,
+            job_id=job_id,
             case_id=image.case_id,
             original_filename=image.original_filename,
             kind=image.kind,
@@ -206,6 +260,13 @@ class ImageResponse(BaseModel):
             preview_available=image.preview_object_key is not None,
             preview_width_px=image.preview_width_px,
             preview_height_px=image.preview_height_px,
+            pixel_spacing_mm=_parse_dicom_decimal_values(image.metadata, "pixel_spacing"),
+            imager_pixel_spacing_mm=_parse_dicom_decimal_values(
+                image.metadata, "imager_pixel_spacing"
+            ),
+            image_orientation_patient=_parse_dicom_decimal_values(
+                image.metadata, "image_orientation_patient", expected_count=6
+            ),
         )
 
 
@@ -228,7 +289,13 @@ class IngestionJobResponse(BaseModel):
     upload_id: UUID
     status: IngestionJobStatus
     attempts: int
-    error_code: str | None
+    error_code: str | None = Field(
+        description=(
+            "Código estável da falha: códigos de conteúdo listados em rejection_code, "
+            "upload_not_found ou processing_failed. Mensagens seguras e recuperação: "
+            "docs/FRONTEND_PROCESSAMENTO_IMAGENS.md."
+        )
+    )
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None
@@ -239,16 +306,35 @@ class IngestionJobResponse(BaseModel):
         return cls(**{field: getattr(job, field) for field in cls.model_fields})
 
 
+class ImageIngestionJobResponse(BaseModel):
+    job: IngestionJobResponse | None = Field(
+        description="Job associado à imagem; nulo enquanto a confirmação ainda não criou o job"
+    )
+
+
 class PlanPoint(BaseModel):
     x: float = Field(ge=0, le=1)
     y: float = Field(ge=0, le=1)
 
 
-class PlanCalibration(BaseModel):
+class PlanReferenceLineCalibration(BaseModel):
     kind: Literal["REFERENCE_LINE"] = "REFERENCE_LINE"
     start: PlanPoint
     end: PlanPoint
     known_length_mm: float = Field(gt=0, le=10_000)
+
+
+class PlanReferenceCircleCalibration(BaseModel):
+    kind: Literal["REFERENCE_CIRCLE"] = "REFERENCE_CIRCLE"
+    center: PlanPoint
+    edge: PlanPoint
+    known_diameter_mm: float = Field(gt=0, le=10_000)
+
+
+PlanCalibration = Annotated[
+    PlanReferenceLineCalibration | PlanReferenceCircleCalibration,
+    Field(discriminator="kind"),
+]
 
 
 class PlanLine(BaseModel):
@@ -289,10 +375,13 @@ PlanObject = Annotated[PlanLine | PlanAngle | PlanCircle | PlanTplo, Field(discr
 
 
 class TploPlanMetadata(BaseModel):
-    """Clinical inputs recorded before automated TPLO calculations are available."""
+    """Clinical inputs, including laterality and radiographic projection for the plan image."""
 
-    laterality: Literal["LEFT", "RIGHT"]
-    projection: Literal["MEDIOLATERAL", "CRANIOCAUDAL", "UNKNOWN"] = "UNKNOWN"
+    laterality: Literal["LEFT", "RIGHT"] = Field(description="Lado clínico selecionado para a imagem")
+    projection: Literal["MEDIOLATERAL", "CRANIOCAUDAL", "UNKNOWN"] = Field(
+        default="UNKNOWN",
+        description="Incidência radiográfica da imagem usada no planejamento",
+    )
     image_quality: Literal["ACCEPTABLE", "LIMITED", "REJECTED"] = "LIMITED"
     eligibility: Literal["PENDING", "ELIGIBLE", "INELIGIBLE"] = "PENDING"
     eligibility_reasons: list[str] = Field(default_factory=list, max_length=10)

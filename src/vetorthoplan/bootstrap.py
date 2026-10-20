@@ -12,14 +12,20 @@ from vetorthoplan.api.schemas import ErrorResponse
 from vetorthoplan.application.errors import (
     CaseNotFoundError,
     IdempotencyKeyConflictError,
+    ImageDeletionConflictError,
     ImageNotFoundError,
     ImageNotReadyError,
     ImagePreviewUnavailableError,
+    ImageUploadCancellationConflictError,
+    ImageUploadCancelledError,
     ImageUploadExpiredError,
+    ImageUploadIdempotencyConflictError,
     ImageUploadLimitExceededError,
     ImageUploadNotFoundError,
     ImageUploadObjectInvalidError,
+    ImageUploadSessionNotPendingError,
     IngestionJobNotFoundError,
+    IngestionJobRetryNotAllowedError,
     PlanRevisionConflictError,
 )
 from vetorthoplan.domain.cases import CaseValidationError
@@ -29,11 +35,13 @@ from vetorthoplan.domain.imaging import ImagingValidationError
 def create_app() -> FastAPI:
     app = FastAPI(
         title="VetOrthoPlan Backend API",
-        version="0.8.0",
+        version="0.9.0",
         summary="API clínica para planejamento ortopédico veterinário",
         description=(
             "Vertical slices do MVP TPLO: casos, upload e processamento inicial de radiografias. "
-            "Use apenas dados sintéticos ou formalmente desidentificados neste estágio."
+            "Use apenas dados sintéticos ou formalmente desidentificados neste estágio. "
+            "Esta versão ainda usa identidade local e não valida Bearer JWT; não está pronta "
+            "para homologação/produção com dados clínicos."
         ),
         contact={"name": "VetOrthoPlan"},
         license_info={"name": "Proprietary"},
@@ -112,6 +120,17 @@ def create_app() -> FastAPI:
         )
         return JSONResponse(status_code=409, content=error.model_dump())
 
+    @app.exception_handler(ImageUploadIdempotencyConflictError)
+    async def image_upload_idempotency_conflict_handler(
+        _request: Request,
+        exc: ImageUploadIdempotencyConflictError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IMAGE_UPLOAD_IDEMPOTENCY_KEY_REUSED",
+            message=str(exc),
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
+
     @app.exception_handler(ImageUploadNotFoundError)
     async def image_upload_not_found_error_handler(
         _request: Request,
@@ -131,6 +150,42 @@ def create_app() -> FastAPI:
     ) -> JSONResponse:
         error = ErrorResponse(
             code="IMAGE_UPLOAD_EXPIRED",
+            message=str(exc),
+            details={"upload_id": str(exc.upload_id)},
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
+
+    @app.exception_handler(ImageUploadCancelledError)
+    async def image_upload_cancelled_error_handler(
+        _request: Request,
+        exc: ImageUploadCancelledError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IMAGE_UPLOAD_CANCELLED",
+            message=str(exc),
+            details={"upload_id": str(exc.upload_id)},
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
+
+    @app.exception_handler(ImageUploadSessionNotPendingError)
+    async def image_upload_session_not_pending_handler(
+        _request: Request,
+        exc: ImageUploadSessionNotPendingError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IMAGE_UPLOAD_SESSION_NOT_PENDING",
+            message=str(exc),
+            details={"upload_id": str(exc.upload_id)},
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
+
+    @app.exception_handler(ImageUploadCancellationConflictError)
+    async def image_upload_cancellation_conflict_handler(
+        _request: Request,
+        exc: ImageUploadCancellationConflictError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IMAGE_UPLOAD_CANCELLATION_CONFLICT",
             message=str(exc),
             details={"upload_id": str(exc.upload_id)},
         )
@@ -160,6 +215,18 @@ def create_app() -> FastAPI:
         )
         return JSONResponse(status_code=404, content=error.model_dump())
 
+    @app.exception_handler(ImageDeletionConflictError)
+    async def image_deletion_conflict_error_handler(
+        _request: Request,
+        exc: ImageDeletionConflictError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IMAGE_DELETION_CONFLICT",
+            message=str(exc),
+            details={"image_id": str(exc.image_id)},
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
+
     @app.exception_handler(IngestionJobNotFoundError)
     async def ingestion_job_not_found_error_handler(
         _request: Request,
@@ -171,6 +238,18 @@ def create_app() -> FastAPI:
             details={"job_id": str(exc.job_id)},
         )
         return JSONResponse(status_code=404, content=error.model_dump())
+
+    @app.exception_handler(IngestionJobRetryNotAllowedError)
+    async def ingestion_job_retry_not_allowed_handler(
+        _request: Request,
+        exc: IngestionJobRetryNotAllowedError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="INGESTION_JOB_RETRY_NOT_ALLOWED",
+            message=str(exc),
+            details={"job_id": str(exc.job_id)},
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
 
     @app.exception_handler(ImagePreviewUnavailableError)
     async def image_preview_unavailable_error_handler(

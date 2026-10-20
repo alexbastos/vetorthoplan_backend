@@ -5,7 +5,7 @@ import pytest
 
 from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.use_cases import CreateCase, CreateCaseCommand
-from vetorthoplan.domain.cases import Case
+from vetorthoplan.domain.cases import BiologicalSex, Case
 
 CASE_ID = UUID("00000000-0000-4000-8000-000000000020")
 TENANT_ID = UUID("00000000-0000-4000-8000-000000000021")
@@ -42,6 +42,7 @@ async def test_create_case_uses_context_instead_of_command_for_tenant_and_actor(
             title="Planejamento TPLO",
             animal_name="Paciente sintético",
             species="Canina",
+            sex=BiologicalSex.UNKNOWN,
         ),
         TenantContext(tenant_id=TENANT_ID, actor_id=ACTOR_ID),
     )

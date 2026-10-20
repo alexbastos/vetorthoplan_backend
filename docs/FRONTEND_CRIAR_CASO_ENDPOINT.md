@@ -2,7 +2,7 @@
 
 > Escopo: primeiro vertical slice implementado no backend.  
 > Endpoint: `POST /api/v1/cases`  
-> Contrato: OpenAPI `0.8.0`.
+> Contrato local: OpenAPI `0.9.0`; `cecia.ufsj.edu.br` ainda publica `0.8.0`.
 > Referência visual detalhada: `docs/frontend/criar-caso-v1.png`.
 
 ![Referência visual para criação de caso](frontend/criar-caso-v1.png)
@@ -126,8 +126,8 @@ Quando a regra for do domínio, o código será `CASE_VALIDATION_ERROR`. Para er
 | Animal | input de texto | `animal_name` |
 | Espécie | select ou input controlado | `species` |
 | Raça | select/input opcional | `breed` |
-| Sexo | select opcional | `sex` |
-| Nascimento ou idade | alternância entre data e meses | `birth_date` **ou** `approximate_age_months` |
+| Sexo | seleção obrigatória; usar `UNKNOWN` se não conhecido | `sex` |
+| Idade | informar data, idade ou ambos se coerentes | `birth_date`, `approximate_age_months` |
 | Peso | input numérico em kg | `weight_kg` |
 | Notas | textarea | `clinical_notes` |
 | Botão “Criar caso” | submit com estado de loading | chama `POST /api/v1/cases` |
@@ -143,7 +143,7 @@ Quando a regra for do domínio, o código será `CASE_VALIDATION_ERROR`. Para er
 - `breed`: até 120 caracteres;
 - `clinical_notes`: até 4.000 caracteres;
 - `birth_date` não pode estar no futuro;
-- enviar `birth_date` ou `approximate_age_months`, nunca os dois;
+- quando enviados juntos, `birth_date` e `approximate_age_months` devem coincidir na data UTC de criação;
 - idade aproximada: de 0 a 600 meses;
 - peso: maior que zero, no máximo duas casas decimais e até 99.999,99 kg.
 

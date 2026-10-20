@@ -25,7 +25,10 @@ class StubCreateImageUpload:
         case_id: UUID,
         command: CreateImageUploadCommand,
         context: TenantContext,
+        *,
+        idempotency_key: str,
     ):
+        assert idempotency_key
         upload = ImageUpload(
             id=UPLOAD_ID,
             image_id=IMAGE_ID,
@@ -74,6 +77,7 @@ async def test_post_image_upload_returns_presigned_form_without_object_key_metad
     ) as client:
         response = await client.post(
             f"/api/v1/cases/{CASE_ID}/image-uploads",
+            headers={"Idempotency-Key": "synthetic-upload-1"},
             json={
                 "original_filename": "joelho.dcm",
                 "media_type": "application/dicom",
@@ -97,6 +101,7 @@ async def test_post_image_upload_rejects_payload_larger_than_100_mib() -> None:
     ) as client:
         response = await client.post(
             f"/api/v1/cases/{CASE_ID}/image-uploads",
+            headers={"Idempotency-Key": "synthetic-upload-2"},
             json={
                 "original_filename": "joelho.dcm",
                 "media_type": "application/dicom",
@@ -120,3 +125,7 @@ async def test_openapi_documents_image_upload_session() -> None:
     operation = schema["paths"]["/api/v1/cases/{case_id}/image-uploads"]["post"]
     assert operation["summary"] == "Criar sessão de upload de radiografia"
     assert {"201", "404", "409", "422"}.issubset(operation["responses"])
+    assert any(
+        parameter["name"] == "Idempotency-Key" and parameter["required"]
+        for parameter in operation["parameters"]
+    )

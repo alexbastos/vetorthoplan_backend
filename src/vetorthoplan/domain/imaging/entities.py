@@ -25,6 +25,8 @@ class ImageUploadStatus(StrEnum):
     PROCESSING = "PROCESSING"
     READY = "READY"
     REJECTED = "REJECTED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
 
 
 MEDIA_TYPE_TO_KIND = {
@@ -68,6 +70,8 @@ class ImageUpload:
     preview_media_type: str | None = None
     preview_width_px: int | None = None
     preview_height_px: int | None = None
+    idempotency_key_hash: str | None = None
+    request_hash: str | None = None
 
     @classmethod
     def create(
@@ -85,6 +89,8 @@ class ImageUpload:
         object_key: str,
         created_at: datetime,
         expires_at: datetime,
+        idempotency_key_hash: str | None = None,
+        request_hash: str | None = None,
     ) -> ImageUpload:
         filename = original_filename.strip()
         if not filename or len(filename) > 255 or PurePath(filename).name != filename:
@@ -141,6 +147,8 @@ class ImageUpload:
             created_at=created_at,
             expires_at=expires_at,
             completed_at=None,
+            idempotency_key_hash=idempotency_key_hash,
+            request_hash=request_hash,
         )
 
     def confirm(self, *, completed_at: datetime) -> ImageUpload:
@@ -153,6 +161,13 @@ class ImageUpload:
             status=ImageUploadStatus.QUARANTINED,
             completed_at=completed_at,
         )
+
+    def cancel(self) -> ImageUpload:
+        if self.status == ImageUploadStatus.CANCELLED:
+            return self
+        if self.status != ImageUploadStatus.PENDING_UPLOAD:
+            raise ImagingValidationError("Somente sessões PENDING_UPLOAD podem ser canceladas.")
+        return replace(self, status=ImageUploadStatus.CANCELLED)
 
     def start_processing(self) -> ImageUpload:
         if self.status == ImageUploadStatus.PROCESSING:
@@ -214,3 +229,15 @@ class ImageUpload:
             rejection_code=rejection_code,
             processed_at=processed_at,
         )
+
+    def fail(self, *, processed_at: datetime) -> ImageUpload:
+        if self.status not in {ImageUploadStatus.QUARANTINED, ImageUploadStatus.PROCESSING}:
+            raise ImagingValidationError("Somente imagens em ingestão podem falhar operacionalmente.")
+        if processed_at.tzinfo is None:
+            raise ImagingValidationError("processed_at deve conter timezone.")
+        return replace(self, status=ImageUploadStatus.FAILED, rejection_code=None, processed_at=processed_at)
+
+    def prepare_retry(self) -> ImageUpload:
+        if self.status != ImageUploadStatus.FAILED:
+            raise ImagingValidationError("Somente imagens com falha operacional podem ser reenfileiradas.")
+        return replace(self, status=ImageUploadStatus.QUARANTINED, processed_at=None)

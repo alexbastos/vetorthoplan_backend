@@ -1,8 +1,8 @@
 # Frontend — confirmar upload de radiografia
 
-> Escopo: confirmação e agendamento do módulo Imaging (`IMG-01`).  
-> Endpoint disponível: `POST /api/v1/image-uploads/{upload_id}/complete`.  
-> Contrato publicado: OpenAPI `0.8.0`.
+> Escopo: confirmação e agendamento do módulo Imaging (`IMG-01`).
+> Endpoint no código local: `POST /api/v1/image-uploads/{upload_id}/complete`.
+> Contrato local: OpenAPI `0.9.0`; `cecia.ufsj.edu.br` ainda publica `0.8.0`.
 > Referência visual: `docs/frontend/confirmacao-upload-v1.png`.
 
 ![Referência visual da confirmação do upload](frontend/confirmacao-upload-v1.png)
@@ -102,4 +102,4 @@ Os motivos são seguros e não expõem bucket, chave do objeto, credenciais ou r
 
 ## 7. Limite do slice
 
-A confirmação não lê os bytes da imagem. Ela publica o job numa fila durável no PostgreSQL; o worker do IMG-02 executa a inspeção posteriormente. Consulte [processamento e consulta de imagens](FRONTEND_PROCESSAMENTO_IMAGENS.md). Thumbnail, parsing clínico DICOM e viewer permanecem pendentes.
+A confirmação não lê os bytes da imagem. Ela publica o job numa fila durável no PostgreSQL; o worker executa a inspeção posteriormente. O recorte atual cria prévia PNG privada e decodifica DICOM monocromático não comprimido single-frame. DICOM comprimido/multiframe e viewer clínico completo permanecem fora do escopo. Consulte [processamento e consulta de imagens](FRONTEND_PROCESSAMENTO_IMAGENS.md).

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.errors import (
+    ImageUploadCancelledError,
     ImageUploadExpiredError,
     ImageUploadNotFoundError,
     ImageUploadObjectInvalidError,
@@ -44,9 +45,11 @@ class CompleteImageUpload:
         self._storage_clock_skew = timedelta(seconds=storage_clock_skew_seconds)
 
     async def execute(self, upload_id: UUID, context: TenantContext) -> CompletedImageUpload:
-        upload = await self._repository.get_by_id(context.tenant_id, upload_id)
+        upload = await self._repository.lock_by_id(context.tenant_id, upload_id)
         if upload is None:
             raise ImageUploadNotFoundError(upload_id)
+        if upload.status == ImageUploadStatus.CANCELLED:
+            raise ImageUploadCancelledError(upload_id)
 
         if upload.status == ImageUploadStatus.PENDING_UPLOAD:
             stored = await self._storage.inspect_uploaded_object(upload)

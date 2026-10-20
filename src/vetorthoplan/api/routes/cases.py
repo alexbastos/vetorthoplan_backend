@@ -163,11 +163,15 @@ async def create_case(
     description=(
         "Valida os metadados do arquivo, registra uma sessão PENDING_UPLOAD em quarentena "
         "e devolve um formulário POST pré-assinado. O binário deve ser enviado diretamente "
-        "ao object storage; esta resposta ainda não significa que a imagem foi ingerida."
+        "ao object storage; esta resposta ainda não significa que a imagem foi ingerida. "
+        "Idempotency-Key é obrigatório: a mesma chave e os mesmos metadados recuperam a sessão."
     ),
     responses={
         404: {"model": ErrorResponse, "description": "Caso não encontrado no tenant ativo"},
-        409: {"model": ErrorResponse, "description": "Limite de uploads do caso atingido"},
+        409: {
+            "model": ErrorResponse,
+            "description": "Limite ativo atingido ou chave de idempotência reutilizada com outros dados",
+        },
         422: {"model": ErrorResponse, "description": "Arquivo ou metadados inválidos"},
     },
 )
@@ -176,6 +180,15 @@ async def create_image_upload(
     request: CreateImageUploadRequest,
     context: TenantContextDependency,
     use_case: CreateImageUploadDependency,
+    idempotency_key: Annotated[
+        str,
+        Header(
+            alias="Idempotency-Key",
+            min_length=1,
+            max_length=128,
+            description="Chave estável para recuperar a mesma sessão após falha de rede",
+        ),
+    ],
 ) -> ImageUploadResponse:
     result = await use_case.execute(
         case_id,
@@ -186,6 +199,7 @@ async def create_image_upload(
             sha256=request.sha256,
         ),
         context,
+        idempotency_key=idempotency_key,
     )
     return ImageUploadResponse(
         upload_id=result.upload.id,

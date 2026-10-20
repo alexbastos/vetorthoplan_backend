@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 
-from vetorthoplan.domain.cases import Case, CaseStatus, CaseValidationError
+from vetorthoplan.domain.cases import BiologicalSex, Case, CaseStatus, CaseValidationError
 
 CASE_ID = UUID("00000000-0000-4000-8000-000000000010")
 TENANT_ID = UUID("00000000-0000-4000-8000-000000000011")
@@ -21,6 +21,7 @@ def test_create_case_normalizes_text_and_starts_as_draft() -> None:
         animal_name="  Paciente sintético  ",
         species="  Canina  ",
         breed="  Labrador  ",
+        sex=BiologicalSex.UNKNOWN,
         weight_kg=Decimal("31.40"),
         now=NOW,
     )
@@ -35,8 +36,26 @@ def test_create_case_normalizes_text_and_starts_as_draft() -> None:
     assert case.created_at == NOW
 
 
-def test_create_case_rejects_two_age_sources() -> None:
-    with pytest.raises(CaseValidationError, match="não ambos"):
+def test_create_case_accepts_coherent_birth_date_and_age() -> None:
+    case = Case.create(
+        case_id=CASE_ID,
+        tenant_id=TENANT_ID,
+        actor_id=ACTOR_ID,
+        title="TPLO",
+        animal_name="Paciente sintético",
+        species="Canina",
+        sex=BiologicalSex.UNKNOWN,
+        birth_date=date(2020, 9, 15),
+        approximate_age_months=72,
+        now=NOW,
+    )
+    assert case.approximate_age_months == 72
+    assert case.age_source.value == "BIRTH_DATE"
+    assert case.age_reference_date == NOW.date()
+
+
+def test_create_case_rejects_incoherent_birth_date_and_age() -> None:
+    with pytest.raises(CaseValidationError, match="não corresponde") as error:
         Case.create(
             case_id=CASE_ID,
             tenant_id=TENANT_ID,
@@ -44,10 +63,12 @@ def test_create_case_rejects_two_age_sources() -> None:
             title="TPLO",
             animal_name="Paciente sintético",
             species="Canina",
-            birth_date=date(2020, 1, 1),
-            approximate_age_months=72,
+            sex=BiologicalSex.UNKNOWN,
+            birth_date=date(2020, 9, 15),
+            approximate_age_months=71,
             now=NOW,
         )
+    assert error.value.field == "approximate_age_months"
 
 
 def test_create_case_rejects_non_positive_weight() -> None:
@@ -59,6 +80,7 @@ def test_create_case_rejects_non_positive_weight() -> None:
             title="TPLO",
             animal_name="Paciente sintético",
             species="Canina",
+            sex=BiologicalSex.UNKNOWN,
             weight_kg=Decimal("0"),
             now=NOW,
         )
@@ -73,6 +95,7 @@ def test_create_case_uses_injected_clock_to_reject_future_birth_date() -> None:
             title="TPLO",
             animal_name="Paciente sintético",
             species="Canina",
+            sex=BiologicalSex.UNKNOWN,
             birth_date=date(2026, 9, 16),
             now=NOW,
         )

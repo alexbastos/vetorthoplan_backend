@@ -21,6 +21,7 @@ class S3PresignedPostStorage:
         bucket: str,
         region: str,
         endpoint_url: str | None,
+        presign_endpoint_url: str | None = None,
         expires_in_seconds: int,
     ) -> None:
         try:
@@ -37,8 +38,23 @@ class S3PresignedPostStorage:
             endpoint_url=endpoint_url,
             config=Config(signature_version="s3v4"),
         )
+        self._presign_client = (
+            boto3.client(
+                "s3",
+                region_name=region,
+                endpoint_url=presign_endpoint_url,
+                config=Config(signature_version="s3v4"),
+            )
+            if presign_endpoint_url and presign_endpoint_url != endpoint_url
+            else self._client
+        )
 
-    def create_presigned_post(self, upload: ImageUpload) -> PresignedUploadTarget:
+    def create_presigned_post(
+        self,
+        upload: ImageUpload,
+        *,
+        expires_in_seconds: int | None = None,
+    ) -> PresignedUploadTarget:
         checksum_base64 = base64.b64encode(bytes.fromhex(upload.sha256)).decode("ascii")
         fields = {
             "Content-Type": upload.media_type,
@@ -51,12 +67,12 @@ class S3PresignedPostStorage:
             {"x-amz-meta-upload-id": str(upload.id)},
             ["content-length-range", upload.size_bytes, upload.size_bytes],
         ]
-        signed = self._client.generate_presigned_post(
+        signed = self._presign_client.generate_presigned_post(
             Bucket=self._bucket,
             Key=upload.object_key,
             Fields=fields,
             Conditions=conditions,
-            ExpiresIn=self._expires_in_seconds,
+            ExpiresIn=expires_in_seconds or self._expires_in_seconds,
         )
         return PresignedUploadTarget(
             method="POST",
@@ -140,7 +156,7 @@ class S3PresignedPostStorage:
         return StoredPreviewObject(object_key=object_key, media_type=media_type)
 
     def create_presigned_get(self, object_key: str, now: datetime) -> PresignedReadTarget:
-        url = self._client.generate_presigned_url(
+        url = self._presign_client.generate_presigned_url(
             "get_object",
             Params={"Bucket": self._bucket, "Key": object_key},
             ExpiresIn=self._expires_in_seconds,
@@ -148,6 +164,13 @@ class S3PresignedPostStorage:
         return PresignedReadTarget(
             url=url,
             expires_at=now + timedelta(seconds=self._expires_in_seconds),
+        )
+
+    async def delete_object(self, object_key: str) -> None:
+        await asyncio.to_thread(
+            self._client.delete_object,
+            Bucket=self._bucket,
+            Key=object_key,
         )
 
     @staticmethod
