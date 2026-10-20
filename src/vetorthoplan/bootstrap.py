@@ -40,8 +40,8 @@ def create_app() -> FastAPI:
         description=(
             "Vertical slices do MVP TPLO: casos, upload e processamento inicial de radiografias. "
             "Use apenas dados sintéticos ou formalmente desidentificados neste estágio. "
-            "Esta versão ainda usa identidade local e não valida Bearer JWT; não está pronta "
-            "para homologação/produção com dados clínicos."
+            "A identidade é configurada por ambiente; o modo JWT valida tokens da authentication_api "
+            "e mantém isolamento clínico por tenant."
         ),
         contact={"name": "VetOrthoPlan"},
         license_info={"name": "Proprietary"},

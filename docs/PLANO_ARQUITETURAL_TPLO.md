@@ -40,9 +40,9 @@ Este registro acompanha o que foi realmente desenvolvido neste repositório. Um 
 | 2026-09-15 | Modelo PostgreSQL e migration Alembic inicial | Concluído; não aplicado | `infrastructure/database`, `migrations/versions/20260915_0001_create_clinical_cases.py` |
 | 2026-09-15 | Swagger, ReDoc e OpenAPI `0.2.0` exportado | Concluído | `/docs`, `/redoc`, `openapi/openapi.json` |
 | 2026-09-15 | Health check de processo | Parcial | `GET /health/live`; `/health/ready` ainda pendente |
-| 2026-09-15 | Identidade/tenant temporários para local e testes | Parcial e provisório | `IDENTITY_MODE=local`; AUTH-01 ainda pendente |
+| 2026-09-15 | Identidade/tenant temporários para local e testes | Restrito a `local`, `development` e `test` | `IDENTITY_MODE=local`; UUIDs configurados não vêm do cliente |
 | 2026-09-15 | Testes unitários, HTTP, configuração e arquitetura | Concluído | `tests/` — 24 testes aprovados |
-| 2026-09-15 | JWT/JWKS, BFF e isolamento de tenant com identidade real | Pendente/bloqueado por AUTH-01 | Integração com `authentication_api` ainda não iniciada |
+| 2026-10-20 | JWT/JWKS e isolamento tenant-scoped com `authentication_api` | Implementado em código; pendente aplicar migration e configurar ambientes | Branch `vet_auth_01`; contrato e migration `20261020_0013` |
 | 2026-09-17 | Domínio e caso de uso de criação de sessão de upload | Concluído | `domain/imaging`, `application/use_cases/create_image_upload.py` |
 | 2026-09-17 | `POST /api/v1/cases/{case_id}/image-uploads` tenant-scoped | Concluído | valida DICOM/PNG/JPEG, 100 MiB, SHA-256 e limite de sessões |
 | 2026-09-17 | Formulário S3 pré-assinado e registro em quarentena | Concluído; infraestrutura não provisionada | `infrastructure/storage.py`, migration `20260917_0002` |
@@ -1190,14 +1190,14 @@ Estado dos entregáveis:
 - [x] qualidade e testes unitários/de arquitetura do primeiro slice;
 - [ ] CI e observabilidade básica;
 - [x] banco e migration inicial (DDL validado offline; não aplicado);
-- [ ] JWT/JWKS integrado;
+- [x] JWT/JWKS integrado no backend; aplicação da migration e configuração de ambiente ainda pendentes;
 - [ ] BFF chamando endpoint protegido;
 - [ ] tenant isolation com identidade real testado;
 - [x] OpenAPI gerado e Swagger publicado;
 - [x] `/health/live`;
 - [ ] `/health/ready` e deploy em homologação.
 
-O endpoint de criação de caso foi antecipado como primeiro slice funcional. Ele usa identidade local fixa apenas em `local`/`test`; isso não substitui o gate AUTH-01.
+O endpoint de criação de caso foi antecipado como primeiro slice funcional. O modo local usa identidade fixa somente em `local`, `development` e `test`; o gate de ponta a ponta ainda exige BFF e banco configurados com JWT.
 
 Gate: um usuário autenticado acessa um recurso sintético apenas no tenant correto, ponta a ponta.
 

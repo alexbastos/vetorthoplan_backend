@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status
 
 from vetorthoplan.api.dependencies import (
     CreateCaseDependency,
@@ -9,6 +9,7 @@ from vetorthoplan.api.dependencies import (
     GetCaseDependency,
     ListCasesDependency,
     TenantContextDependency,
+    get_tenant_context,
 )
 from vetorthoplan.api.pagination import decode_case_cursor, encode_case_cursor
 from vetorthoplan.api.schemas import (
@@ -30,7 +31,11 @@ from vetorthoplan.application.use_cases import (
 )
 from vetorthoplan.domain.cases import CaseStatus
 
-router = APIRouter(prefix="/api/v1/cases", tags=["Cases"])
+router = APIRouter(
+    prefix="/api/v1/cases",
+    tags=["Cases"],
+    dependencies=[Depends(get_tenant_context)],
+)
 
 
 @router.get(

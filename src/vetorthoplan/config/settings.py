@@ -16,6 +16,12 @@ class Settings(BaseSettings):
 
     app_env: Literal["local", "test", "development", "staging", "production"] = "local"
     identity_mode: Literal["local", "jwt"] = "local"
+    jwt_issuer: str | None = None
+    jwt_audience: str = "vetorthoplan-api"
+    jwks_url: str | None = None
+    jwks_cache_seconds: int = Field(default=300, ge=30, le=3600)
+    jwks_timeout_seconds: float = Field(default=3.0, gt=0, le=15)
+    jwt_clock_skew_seconds: int = Field(default=30, ge=0, le=120)
     local_tenant_id: UUID = UUID("00000000-0000-4000-8000-000000000001")
     local_actor_id: UUID = UUID("00000000-0000-4000-8000-000000000002")
     database_url: str = (
@@ -33,8 +39,21 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reject_local_identity_outside_safe_environments(self) -> "Settings":
-        if self.identity_mode == "local" and self.app_env in {"staging", "production"}:
-            raise ValueError("IDENTITY_MODE=local não é permitido em staging ou production.")
+        if self.identity_mode == "local" and self.app_env not in {"local", "development", "test"}:
+            raise ValueError(
+                "IDENTITY_MODE=local só é permitido nos ambientes local, development ou test."
+            )
+        if self.identity_mode == "jwt":
+            if not self.jwt_issuer or not self.jwt_issuer.strip() or not self.jwks_url:
+                raise ValueError("JWT_ISSUER e JWKS_URL são obrigatórios com IDENTITY_MODE=jwt.")
+            if len(self.jwt_issuer) > 500:
+                raise ValueError("JWT_ISSUER deve ter no máximo 500 caracteres.")
+            if not self.jwt_audience.strip():
+                raise ValueError("JWT_AUDIENCE não pode ser vazio.")
+            if not self.jwks_url.strip():
+                raise ValueError("JWKS_URL não pode ser vazio.")
+            if not self.jwks_url.startswith("https://") and self.app_env not in {"local", "test"}:
+                raise ValueError("JWKS_URL deve usar HTTPS fora dos ambientes local e test.")
         return self
 
 

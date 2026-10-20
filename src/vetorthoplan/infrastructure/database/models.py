@@ -26,6 +26,38 @@ class Base(DeclarativeBase):
     pass
 
 
+class AuthSubjectMappingModel(Base):
+    """Maps an authentication service subject to the backend's internal actor UUID."""
+
+    __tablename__ = "auth_subject_mappings"
+    __table_args__ = (
+        UniqueConstraint("issuer", "subject", name="uq_auth_subject_mappings_issuer_subject"),
+    )
+
+    actor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    issuer: Mapped[str] = mapped_column(String(500), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AuthOrganizationMappingModel(Base):
+    """Maps an authentication service organization CUID to an internal tenant UUID."""
+
+    __tablename__ = "auth_organization_mappings"
+    __table_args__ = (
+        UniqueConstraint(
+            "issuer",
+            "organization_id",
+            name="uq_auth_organization_mappings_issuer_organization",
+        ),
+    )
+
+    tenant_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    issuer: Mapped[str] = mapped_column(String(500), nullable=False)
+    organization_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class CaseModel(Base):
     __tablename__ = "clinical_cases"
     __table_args__ = (

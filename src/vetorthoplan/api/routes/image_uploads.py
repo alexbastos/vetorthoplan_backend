@@ -1,15 +1,20 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Depends, Response, status
 
 from vetorthoplan.api.dependencies import (
     CancelImageUploadDependency,
     CompleteImageUploadDependency,
     TenantContextDependency,
+    get_tenant_context,
 )
 from vetorthoplan.api.schemas import CompletedImageUploadResponse, ErrorResponse
 
-router = APIRouter(prefix="/api/v1/image-uploads", tags=["Image uploads"])
+router = APIRouter(
+    prefix="/api/v1/image-uploads",
+    tags=["Image uploads"],
+    dependencies=[Depends(get_tenant_context)],
+)
 
 
 @router.post(
