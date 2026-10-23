@@ -141,6 +141,16 @@ Com `IDENTITY_MODE=jwt`, configure `JWT_ISSUER`, `JWT_AUDIENCE=vetorthoplan-api`
 
 `IDENTITY_MODE=local` é rejeitado em `staging` e `production`; nesses ambientes configure o modo JWT. A audiência dedicada é emitida pela rota de token de organização da `authentication_api` após validar o vínculo ativo do membro.
 
+### Preflight da integração de identidade
+
+Antes do deploy, obtenha na `authentication_api` um access token recente da organização destinado ao Vet e forneça-o temporariamente como `VET_PREFLIGHT_TOKEN` (em CI, use o armazenamento de secrets do pipeline). Execute na raiz do repositório:
+
+```bash
+.venv/bin/python scripts/preflight_identity.py
+```
+
+O script verifica `IDENTITY_MODE=jwt`, a assinatura e os claims do token usando o JWKS configurado, a conexão com o banco indicado por `DATABASE_URL`, a versão Alembic atual e as tabelas de mapeamento. Ele não imprime nem persiste o token, não altera o banco e retorna código diferente de zero se alguma validação falhar. A validação da associação ativa do usuário acontece na emissão do token pela `authentication_api`; o preflight confirma que o token emitido pode ser aceito pelo Vet, sem consultar credenciais ou tabelas da autenticação.
+
 ## Endpoints de casos
 
 - `POST /api/v1/cases` cria um caso clínico no estado `DRAFT`;

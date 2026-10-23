@@ -9,6 +9,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY migrations ./migrations
+COPY scripts/preflight_identity.py ./scripts/preflight_identity.py
 COPY alembic.ini ./alembic.ini
 RUN pip install . \
     && useradd --system --uid 10001 --create-home vetorthoplan
