@@ -62,6 +62,10 @@ Regras publicadas:
 
 O limite inicial é de 20 sessões não expiradas por caso. A URL expira em cinco minutos por padrão.
 
+O backend também bloqueia conteúdo repetido dentro do mesmo caso pelo `sha256`, independentemente do nome do arquivo. Repetir a mesma chave de idempotência com os mesmos metadados recupera a sessão original antes de verificar duplicidade; outra chave para o mesmo conteúdo recebe `409 IMAGE_UPLOAD_DUPLICATE`. Conteúdo igual em casos diferentes continua permitido.
+
+Uma sessão pendente reserva o hash até ser cancelada ou expirar sem confirmação. Após a confirmação, o hash permanece reservado enquanto o registro da imagem existir, mesmo que a URL assinada expire ou a ingestão falhe. Excluir a imagem efetivamente libera o conteúdo para novo upload. Para segurança, `details.existing_image_id` só é incluído quando já há uma sessão confirmada e visível no caso autorizado.
+
 A criação da sessão é idempotente por tenant, usuário e `Idempotency-Key`. Repetir a chave com o mesmo caso e os mesmos metadados devolve a sessão existente e uma nova assinatura limitada ao prazo de expiração original. A chave não expira enquanto o registro da sessão existir; após a limpeza do registro expirado, a chave pode ser reutilizada. Se a resposta `201` se perder, repita a requisição com a mesma chave. Uma sessão expirada exige uma chave nova. Depois do limite de sessões ativas, cancele uma sessão ainda pendente ou aguarde sua expiração; após reload, `GET /api/v1/cases/{case_id}/images` recupera os estados e o `job_id` associado.
 
 O navegador precisa enviar o `POST multipart/form-data` à origem indicada por `upload.url`, incluindo todos os campos assinados e o arquivo por último. Não defina o header `Content-Type` manualmente e não siga redirecionamentos. A infraestrutura de cada ambiente deve permitir a origem exata do frontend e os métodos/headers necessários via CORS; os valores de origem e a resposta de sucesso são configurações do storage por ambiente.
@@ -122,6 +126,7 @@ Não defina `Content-Type` manualmente nesse `fetch`; o browser precisa incluir 
 | URL expirada | Criar nova sessão; nunca reutilizar assinatura expirada |
 | `404 CASE_NOT_FOUND` | Voltar à lista ou informar que o caso não está disponível |
 | `409 IMAGE_UPLOAD_LIMIT_EXCEEDED` | Informar o limite e evitar retry automático imediato |
+| `409 IMAGE_UPLOAD_DUPLICATE` | Informar que o mesmo conteúdo já existe no caso; não repetir com nova chave |
 | `422 REQUEST_VALIDATION_ERROR` | Associar erros estruturais aos campos |
 | `422 IMAGE_UPLOAD_VALIDATION_ERROR` | Exibir a mensagem segura e manter o arquivo selecionado |
 | Falha de rede/storage | Permitir nova tentativa consciente; não marcar como processado |

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Referência visual: simulação geométrica TPLO</title>
+  <desc id="desc">Wireframe conceitual da seleção do fragmento proximal e rotação em torno do centro da osteotomia.</desc>
+  <rect width="1440" height="900" fill="#0b1220"/><rect width="1440" height="72" fill="#172033"/>
+  <text x="32" y="31" fill="#f8fafc" font-family="Arial,sans-serif" font-size="18" font-weight="700">VETORTHOPLAN</text>
+  <text x="32" y="54" fill="#94a3b8" font-family="Arial,sans-serif" font-size="13">Planejamento TPLO · Simulação geométrica conceitual</text>
+  <text x="400" y="43" fill="#e2e8f0" font-family="Arial,sans-serif" font-size="15">Paciente sintético 01 · Joelho direito</text>
+  <rect x="1195" y="20" width="210" height="32" rx="16" fill="#143b34" stroke="#2dd4a0"/><circle cx="1217" cy="36" r="5" fill="#2dd4a0"/><text x="1232" y="41" fill="#a7f3d0" font-family="Arial,sans-serif" font-size="12">Escala manual vinculada</text>
+  <rect x="24" y="92" width="870" height="770" rx="12" fill="#101827" stroke="#334155"/>
+  <text x="52" y="130" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="13">RADIOGRAFIA · PROJEÇÃO MEDIOLATERAL · IMAGEM SINTÉTICA</text>
+  <path d="M407 185 C370 225 380 308 398 368 C416 425 430 463 420 501 C410 542 369 559 369 604 C370 638 400 660 432 650 C461 641 469 612 458 583 C447 552 460 516 476 469 C495 412 518 329 502 253 C490 194 447 157 407 185Z" fill="#bbc6d4" stroke="#e2e8f0" stroke-width="3" opacity=".82"/>
+  <path d="M390 628 C354 650 340 686 356 719 C370 748 403 757 419 779 L430 835 L493 835 L492 777 C510 753 533 735 531 702 C529 670 498 640 465 628Z" fill="#aeb9c8" stroke="#e2e8f0" stroke-width="3" opacity=".74"/>
+  <!-- Fragmento de entrada: polígono fechado sintético. -->
+  <path d="M369 604 L390 563 L445 548 L483 579 L464 625 L432 650 L400 643 Z" fill="#22c55e" fill-opacity=".25" stroke="#4ade80" stroke-width="3" stroke-dasharray="9 5"/>
+  <text x="271" y="558" fill="#bbf7d0" font-family="Arial,sans-serif" font-size="12">Contorno original</text>
+  <path d="M369 604 L390 563 L445 548 L483 579 L464 625 L432 650 L400 643 Z" transform="rotate(-18 430 611)" fill="#38bdf8" fill-opacity=".22" stroke="#7dd3fc" stroke-width="3"/>
+  <text x="284" y="682" fill="#bae6fd" font-family="Arial,sans-serif" font-size="12">Prévia após rotação</text>
+  <!-- Centro e raio da serra. -->
+  <circle cx="430" cy="611" r="62" fill="none" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 5"/>
+  <line x1="430" y1="611" x2="488" y2="589" stroke="#fbbf24" stroke-width="3"/><circle cx="430" cy="611" r="7" fill="#fbbf24" stroke="#fff" stroke-width="2"/>
+  <rect x="497" y="573" width="87" height="24" rx="6" fill="#713f12"/><text x="509" y="590" fill="#fef3c7" font-family="Arial,sans-serif" font-size="12">Raio 18 mm</text>
+  <path d="M430 557 A54 54 0 0 1 447 560" fill="none" stroke="#fbbf24" stroke-width="3"/><text x="452" y="546" fill="#fde68a" font-family="Arial,sans-serif" font-size="13">−18°</text>
+  <rect x="52" y="795" width="810" height="42" rx="8" fill="#251e12" stroke="#8a5a16"/>
+  <text x="70" y="821" fill="#fde68a" font-family="Arial,sans-serif" font-size="12">Prévia geométrica para revisão. Não representa recomendação clínica nem substitui validação veterinária.</text>
+
+  <rect x="914" y="92" width="502" height="770" rx="12" fill="#172033" stroke="#334155"/>
+  <text x="946" y="135" fill="#f8fafc" font-family="Arial,sans-serif" font-size="19" font-weight="700">Osteotomia e fragmento</text>
+  <text x="946" y="162" fill="#94a3b8" font-family="Arial,sans-serif" font-size="12">Defina a geometria e confira a transformação aplicada.</text>
+  <text x="946" y="211" fill="#64748b" font-family="Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="1">GEOMETRIA DA SERRA</text>
+  <text x="946" y="250" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="13">Centro</text><rect x="1070" y="228" width="307" height="38" rx="7" fill="#0f172a" stroke="#334155"/><text x="1085" y="252" fill="#e2e8f0" font-family="Arial,sans-serif" font-size="12">Imagem original · x 879 px · y 1041 px</text>
+  <text x="946" y="302" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="13">Raio</text><rect x="1070" y="280" width="143" height="38" rx="7" fill="#0f172a" stroke="#334155"/><text x="1085" y="304" fill="#e2e8f0" font-family="Arial,sans-serif" font-size="13">18,0 mm</text><text x="1230" y="304" fill="#64748b" font-family="Arial,sans-serif" font-size="11">calculado pela escala manual</text>
+  <line x1="946" y1="340" x2="1380" y2="340" stroke="#334155"/>
+  <text x="946" y="378" fill="#64748b" font-family="Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="1">FRAGMENTO PROXIMAL</text>
+  <rect x="946" y="398" width="434" height="57" rx="8" fill="#102a26" stroke="#16805f"/><circle cx="969" cy="426" r="6" fill="#34d399"/><text x="987" y="422" fill="#d1fae5" font-family="Arial,sans-serif" font-size="13" font-weight="700">Contorno fechado · 7 pontos</text><text x="987" y="441" fill="#86b9a7" font-family="Arial,sans-serif" font-size="11">Editar contorno</text>
+  <text x="946" y="504" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="13">Rotação</text><text x="1378" y="504" fill="#fde68a" font-family="Arial,sans-serif" font-size="16" font-weight="700" text-anchor="end">−18°</text>
+  <rect x="946" y="521" width="434" height="10" rx="5" fill="#334155"/><rect x="1094" y="521" width="148" height="10" rx="5" fill="#d89b24"/><circle cx="1094" cy="526" r="10" fill="#fde68a" stroke="#713f12" stroke-width="3"/>
+  <text x="946" y="556" fill="#64748b" font-family="Arial,sans-serif" font-size="11">−45°</text><text x="1380" y="556" fill="#64748b" font-family="Arial,sans-serif" font-size="11" text-anchor="end">+45°</text>
+  <rect x="946" y="588" width="434" height="92" rx="8" fill="#111c2c" stroke="#334155"/>
+  <text x="965" y="615" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="12">Transformação geométrica</text><text x="965" y="639" fill="#94a3b8" font-family="monospace" font-size="11">[ cosθ  −sinθ  tx ]</text><text x="965" y="659" fill="#94a3b8" font-family="monospace" font-size="11">[ sinθ   cosθ  ty ]</text>
+  <text x="946" y="719" fill="#64748b" font-family="Arial,sans-serif" font-size="11">Calibração vinculada</text><text x="1378" y="719" fill="#a7f3d0" font-family="Arial,sans-serif" font-size="11" text-anchor="end">0,250 mm/px · ID associado</text>
+  <rect x="946" y="766" width="434" height="50" rx="8" fill="#2563eb"/><text x="1163" y="797" fill="#fff" font-family="Arial,sans-serif" font-size="14" font-weight="700" text-anchor="middle">Atualizar prévia</text>
+  <text x="25" y="887" fill="#475569" font-family="Arial,sans-serif" font-size="10">Wireframe ilustrativo com anatomia sintética · não usar como referência clínica</text>
+</svg>

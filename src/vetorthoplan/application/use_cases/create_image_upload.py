@@ -9,6 +9,7 @@ from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.errors import (
     CaseNotFoundError,
     ImageUploadCancelledError,
+    ImageUploadDuplicateError,
     ImageUploadExpiredError,
     ImageUploadIdempotencyConflictError,
     ImageUploadLimitExceededError,
@@ -111,6 +112,16 @@ class CreateImageUpload:
                     expires_in_seconds=min(self._expires_in_seconds, remaining),
                 ),
             )
+
+        duplicate = await self._upload_repository.find_duplicate_for_case(
+            context.tenant_id,
+            case_id,
+            command.sha256.strip().lower(),
+            now,
+        )
+        if duplicate is not None:
+            existing_image_id = duplicate.image_id if duplicate.completed_at is not None else None
+            raise ImageUploadDuplicateError(existing_image_id)
 
         upload_count = await self._upload_repository.count_active_for_case(
             context.tenant_id,

@@ -19,6 +19,7 @@ from vetorthoplan.application.errors import (
     ImagePreviewUnavailableError,
     ImageUploadCancellationConflictError,
     ImageUploadCancelledError,
+    ImageUploadDuplicateError,
     ImageUploadExpiredError,
     ImageUploadIdempotencyConflictError,
     ImageUploadLimitExceededError,
@@ -140,6 +141,22 @@ def create_app() -> FastAPI:
             code="IMAGE_UPLOAD_LIMIT_EXCEEDED",
             message=str(exc),
             details={"case_id": str(exc.case_id), "limit": exc.limit},
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
+
+    @app.exception_handler(ImageUploadDuplicateError)
+    async def image_upload_duplicate_error_handler(
+        _request: Request,
+        exc: ImageUploadDuplicateError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IMAGE_UPLOAD_DUPLICATE",
+            message=str(exc),
+            details=(
+                {"existing_image_id": str(exc.existing_image_id)}
+                if exc.existing_image_id is not None
+                else {}
+            ),
         )
         return JSONResponse(status_code=409, content=error.model_dump())
 

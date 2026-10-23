@@ -15,6 +15,9 @@ class CancelImageUpload:
         self._storage = storage
 
     async def execute(self, upload_id: UUID, context: TenantContext) -> None:
+        lock_case = getattr(self._uploads, "lock_case_for_upload", None)
+        if lock_case is not None and not await lock_case(context.tenant_id, upload_id):
+            raise ImageUploadNotFoundError(upload_id)
         upload = await self._uploads.lock_by_id(context.tenant_id, upload_id)
         if upload is None:
             raise ImageUploadNotFoundError(upload_id)

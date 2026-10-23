@@ -199,7 +199,10 @@ async def create_case(
         404: {"model": ErrorResponse, "description": "Caso não encontrado no tenant ativo"},
         409: {
             "model": ErrorResponse,
-            "description": "Limite ativo atingido ou chave de idempotência reutilizada com outros dados",
+            "description": (
+                "Arquivo duplicado no caso, limite ativo atingido ou chave de idempotência "
+                "reutilizada com outros dados"
+            ),
         },
         422: {"model": ErrorResponse, "description": "Arquivo ou metadados inválidos"},
     },

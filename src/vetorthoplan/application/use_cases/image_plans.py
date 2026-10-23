@@ -16,6 +16,7 @@ from vetorthoplan.application.ports import (
 )
 from vetorthoplan.domain.imaging import ImageUploadStatus
 from vetorthoplan.domain.planning import ImagePlan
+from vetorthoplan.domain.planning.measurements import derive_plan_measurements
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +78,11 @@ class SaveImagePlan:
             raise ImageNotFoundError(image_id)
         if image.status != ImageUploadStatus.READY:
             raise ImageNotReadyError(image_id)
+        document = derive_plan_measurements(
+            document,
+            width_px=image.width_px,
+            height_px=image.height_px,
+        )
         current = await self._plans.get(context.tenant_id, image_id)
         if current is None:
             if base_revision != 0:

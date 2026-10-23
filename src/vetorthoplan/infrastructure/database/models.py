@@ -161,6 +161,7 @@ class ImageUploadModel(Base):
             name="uq_image_uploads_idempotency_scope",
         ),
         Index("ix_image_uploads_tenant_case", "tenant_id", "case_id"),
+        Index("ix_image_uploads_case_sha256", "tenant_id", "case_id", "sha256"),
         Index("ix_image_uploads_expires_at", "expires_at"),
     )
 

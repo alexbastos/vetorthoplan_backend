@@ -33,6 +33,9 @@ class DeleteImage:
         self._clock = clock
 
     async def execute(self, image_id: UUID, context: TenantContext) -> None:
+        lock_case = getattr(self._images, "lock_case_for_image", None)
+        if lock_case is not None and not await lock_case(context.tenant_id, image_id):
+            raise ImageNotFoundError(image_id)
         image = await self._images.get_by_image_id(context.tenant_id, image_id)
         if image is None:
             raise ImageNotFoundError(image_id)

@@ -11,10 +11,10 @@
       "name": "Proprietary"
     },
     "version": "0.9.0",
-    "x-git-branch": "vet_auth_01",
-    "x-git-commit": "bca4fb2fba930d1422930a859531f118801e1010",
+    "x-git-branch": "calibration",
+    "x-git-commit": "117b25de549ca15413a669cbf7821a691177c1fd",
     "x-git-working-tree-dirty": true,
-    "x-generated-at": "2026-10-23T16:16:12.071909+00:00"
+    "x-generated-at": "2026-10-23T17:16:34.397897+00:00"
   },
   "paths": {
     "/health/live": {
@@ -444,7 +444,7 @@
             }
           },
           "409": {
-            "description": "Limite ativo atingido ou chave de idempotência reutilizada com outros dados",
+            "description": "Arquivo duplicado no caso, limite ativo atingido ou chave de idempotência reutilizada com outros dados",
             "content": {
               "application/json": {
                 "schema": {
@@ -1837,7 +1837,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Details",
-            "description": "Campos dependem de code. REQUEST_VALIDATION_ERROR: errors[], cada item com field e type. CASE_VALIDATION_ERROR: field opcional. IMAGE_UPLOAD_OBJECT_INVALID: upload_id e reason."
+            "description": "Campos dependem de code. REQUEST_VALIDATION_ERROR: errors[], cada item com field e type. CASE_VALIDATION_ERROR: field opcional. IMAGE_UPLOAD_OBJECT_INVALID: upload_id e reason. IMAGE_UPLOAD_DUPLICATE: existing_image_id opcional, se a sessão confirmada for visível."
           },
           "trace_id": {
             "anyOf": [
@@ -2501,6 +2501,17 @@
               }
             ],
             "title": "Label"
+          },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanDerivedMeasurement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resultado calculado pelo backend; valores do cliente são ignorados."
           }
         },
         "type": "object",
@@ -2512,6 +2523,35 @@
           "end"
         ],
         "title": "PlanAngle"
+      },
+      "PlanCalibrationResult": {
+        "properties": {
+          "calibration_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Calibration Id",
+            "description": "Fingerprint da referência manual e das dimensões da imagem."
+          },
+          "reference_length_px": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Reference Length Px",
+            "description": "Comprimento da referência na imagem original."
+          },
+          "mm_per_pixel": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Mm Per Pixel",
+            "description": "Escala calculada a partir da medida manual informada."
+          }
+        },
+        "type": "object",
+        "required": [
+          "calibration_id",
+          "reference_length_px",
+          "mm_per_pixel"
+        ],
+        "title": "PlanCalibrationResult"
       },
       "PlanCircle": {
         "properties": {
@@ -2542,6 +2582,17 @@
               }
             ],
             "title": "Label"
+          },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanDerivedMeasurement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resultado calculado pelo backend; valores do cliente são ignorados."
           }
         },
         "type": "object",
@@ -2552,6 +2603,57 @@
           "edge"
         ],
         "title": "PlanCircle"
+      },
+      "PlanDerivedMeasurement": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "CALCULATED",
+              "CALIBRATION_REQUIRED",
+              "IMAGE_DIMENSIONS_REQUIRED"
+            ],
+            "title": "Status",
+            "description": "Estado do cálculo geométrico feito pelo backend."
+          },
+          "calibration_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration Id"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Values",
+            "description": "Valores geométricos derivados."
+          },
+          "units": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "mm",
+                "degrees"
+              ]
+            },
+            "type": "object",
+            "title": "Units",
+            "description": "Unidade de cada medida."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "PlanDerivedMeasurement"
       },
       "PlanDocument": {
         "properties": {
@@ -2630,6 +2732,36 @@
         "type": "object",
         "title": "PlanDocument"
       },
+      "PlanFragment": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/PlanPoint"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 3,
+            "title": "Points"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "title": "PlanFragment"
+      },
       "PlanLine": {
         "properties": {
           "id": {
@@ -2659,6 +2791,17 @@
               }
             ],
             "title": "Label"
+          },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanDerivedMeasurement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resultado calculado pelo backend; valores do cliente são ignorados."
           }
         },
         "type": "object",
@@ -2711,6 +2854,17 @@
             "maximum": 10000.0,
             "exclusiveMinimum": 0.0,
             "title": "Known Diameter Mm"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanCalibrationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resultado calculado pelo backend; não enviar como fonte da calibração."
           }
         },
         "type": "object",
@@ -2740,6 +2894,17 @@
             "maximum": 10000.0,
             "exclusiveMinimum": 0.0,
             "title": "Known Length Mm"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanCalibrationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resultado calculado pelo backend; não enviar como fonte da calibração."
           }
         },
         "type": "object",
@@ -2785,6 +2950,39 @@
               }
             ],
             "title": "Label"
+          },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanDerivedMeasurement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resultado calculado pelo backend; valores do cliente são ignorados."
+          },
+          "fragment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanFragment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Contorno do fragmento proximal no sistema normalizado da imagem."
+          },
+          "simulation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanTploSimulation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Transformação geométrica calculada pelo backend."
           }
         },
         "type": "object",
@@ -2796,6 +2994,79 @@
           "rotation_degrees"
         ],
         "title": "PlanTplo"
+      },
+      "PlanTploSimulation": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SIMULATED",
+              "CALIBRATION_REQUIRED",
+              "IMAGE_DIMENSIONS_REQUIRED",
+              "FRAGMENT_REQUIRED"
+            ],
+            "title": "Status"
+          },
+          "calibration_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration Id"
+          },
+          "center_px": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Center Px"
+          },
+          "radius_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Radius Mm"
+          },
+          "rotation_degrees": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 180.0,
+                "minimum": -180.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Degrees"
+          },
+          "affine_matrix": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Affine Matrix"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "PlanTploSimulation"
       },
       "PresignedPostResponse": {
         "properties": {

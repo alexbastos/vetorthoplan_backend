@@ -2,7 +2,7 @@
 
 > Status: referência funcional inicial para UX e desenvolvimento  
 > Fonte: `PLANO_ARQUITETURAL_TPLO.md`  
-> Escopo atual da API: criar, listar e consultar casos; criar/confirmar upload e agendar ingestão  
+> Escopo atual da API: casos, upload/ingestão, plano geométrico, calibração manual e medições geométricas
 > Artefatos visuais: `docs/frontend/fluxo-frontend-tplo-v2.png`, `criar-caso-v1.png`, `casos-listagem-detalhe-v2.png`, `upload-radiografia-v1.png`, `confirmacao-upload-v1.png` e `processamento-imagem-v1.png`
 
 ![Fluxo frontend TPLO](frontend/fluxo-frontend-tplo-v2.png)
@@ -13,9 +13,9 @@ A prancha apresenta a jornada completa desejada para o MVP. Ela não é uma espe
 
 Há três níveis de maturidade no fluxo:
 
-- **Disponível agora:** criar, listar e consultar casos, criar/confirmar upload e receber um job de ingestão `QUEUED`.
+- **Disponível agora:** criar, listar e consultar casos; criar/confirmar upload; consultar/salvar plano geométrico; calcular escala manual e medições geométricas em imagens prontas.
 - **Parcial:** transporte direto, confirmação, worker inicial e consulta de estado estão disponíveis; thumbnails, parsing clínico DICOM e viewer ainda não.
-- **Planejado:** telas clínicas e contratos descritos no plano arquitetural, ainda sem implementação no backend.
+- **Parcial:** o backend persiste geometria, escala manual e resultados lineares/circulares/angulares. A interface clínica, revisão por parceiro e homologação das fórmulas anatômicas continuam pendentes.
 - **Dependência futura:** autenticação e seleção da organização, que exigem o contrato AUTH-01 entre os projetos.
 
 Enquanto AUTH-01 não estiver concluído, o frontend não deve inventar `tenant_id`, `created_by`, token ou seleção de organização. Esses valores não fazem parte do formulário de criação do caso.
@@ -27,8 +27,8 @@ Enquanto AUTH-01 não estiver concluído, o frontend não deve inventar `tenant_
 | 0 | Autenticação e clínica | Usuário entra com uma organização ativa assinada no token | Dependência futura |
 | 1 | Novo caso | Caso criado no estado `DRAFT` | Disponível |
 | 2 | Imagens do caso | DICOM, PNG ou JPEG enviado e processado | Parcial — sessão e confirmação disponíveis |
-| 3 | Validação e calibração | Imagem, lado, orientação e escala confirmados | Planejado |
-| 4 | Medições | Linhas, círculos, ângulos, eixos e TPA registrados | Planejado |
+| 3 | Validação e calibração | Imagem, lado, orientação e escala confirmados | Parcial — plano e escala manual calculados pela API; validação clínica pendente |
+| 4 | Medições | Linhas, círculos e ângulos registrados com geometria original e valores derivados | Parcial — API disponível; interface e homologação clínica pendentes |
 | 5 | Simulação TPLO | Osteotomia, fragmento e rotação simulados | Planejado |
 | 6 | Implantes | Placa/implante selecionado e posicionado | Planejado |
 | 7 | Revisão e finalização | Checklist aprovado e revisão tornada imutável | Planejado |
@@ -105,6 +105,7 @@ O envio binário usa o formulário pré-assinado: navegador → storage. Criaç�
 
 - confirmar projeção, lado e orientação da radiografia;
 - oferecer calibração por linha ou círculo;
+- usar as pranchas conceituais de [calibração por linha](frontend/calibracao-linha-v1.svg) e [calibração por círculo](frontend/calibracao-circulo-v1.svg) como referência inicial de interface;
 - solicitar o comprimento/diâmetro real em milímetros;
 - diferenciar pixel spacing informativo de calibração clínica validada;
 - bloquear medições em milímetros enquanto não houver calibração válida;
@@ -112,18 +113,23 @@ O envio binário usa o formulário pré-assinado: navegador → storage. Criaç�
 
 ### 4.3 Medir
 
+- usar a referência visual conceitual de [medições anatômicas](frontend/medicoes-anatomicas-v1.svg);
 - ferramentas iniciais: linha, círculo, ângulo, texto, eixos anatômico/mecânico e TPA;
 - persistir pontos no espaço da imagem original, nunca em coordenadas CSS;
+- apresentar medidas retornadas pelo backend e associar resultados em milímetros ao `calibration_id`; não calcular valores clínicos usando escala local do canvas;
+- bloquear a criação de medidas em milímetros quando a resposta indicar `CALIBRATION_REQUIRED`; mostrar orientação para calibrar a imagem primeiro;
+- diferenciar o ângulo em graus, que não depende da escala, das medidas lineares em milímetros;
 - manter zoom, pan, rotação visual e window/level como estado de apresentação;
 - oferecer seleção, edição, bloqueio, visibilidade e remoção de objetos;
 - permitir operação equivalente por mouse, touch e teclado sempre que aplicável.
 
 ### 4.4 Simular TPLO
 
+- usar a referência visual conceitual de [simulação geométrica da osteotomia](frontend/simulacao-osteotomia-tplo-v1.svg);
 - posicionar círculo/lâmina e centro da osteotomia;
-- confirmar raio e parâmetros clínicos homologados;
-- criar uma máscara fechada do fragmento proximal;
-- aplicar rotação e translação como transformação vetorial;
+- confirmar raio manualmente e registrar o contorno fechado do fragmento proximal;
+- enviar centro, raio, rotação e contorno no objeto `TPLO`; consumir a matriz afim e o `calibration_id` devolvidos pela API;
+- mostrar a prévia rotacionada ao redor do centro da osteotomia, mantendo o contorno de origem editável;
 - exibir TPA, ângulo de rotação, deslocamento de corda e medidas auxiliares apenas após validação clínica das fórmulas;
 - preservar internamente a precisão e arredondar somente na apresentação.
 

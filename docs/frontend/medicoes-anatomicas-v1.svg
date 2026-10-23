@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Referência visual: medições anatômicas em radiografia</title>
+  <desc id="desc">Wireframe conceitual com radiografia sintética, ferramentas de linha, círculo e ângulo, calibração manual validada e valores de medida.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#111827"/><stop offset="1" stop-color="#0b1220"/></linearGradient>
+    <linearGradient id="bone" x2="0" y2="1"><stop stop-color="#e5e7eb"/><stop offset=".48" stop-color="#aeb8c8"/><stop offset="1" stop-color="#e2e8f0"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#334155" stroke-width="1" opacity=".2"/></pattern>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1600" height="76" fill="#172033"/>
+  <text x="34" y="32" fill="#f8fafc" font-family="Arial,sans-serif" font-size="18" font-weight="700">VETORTHOPLAN</text>
+  <text x="34" y="56" fill="#94a3b8" font-family="Arial,sans-serif" font-size="13">Planejamento pré-operatório TPLO · Referência visual conceitual</text>
+  <text x="465" y="45" fill="#e2e8f0" font-family="Arial,sans-serif" font-size="16">Paciente sintético 01</text>
+  <rect x="1347" y="23" width="219" height="32" rx="16" fill="#143b34" stroke="#2dd4a0"/>
+  <circle cx="1368" cy="39" r="5" fill="#2dd4a0"/><text x="1382" y="44" fill="#a7f3d0" font-family="Arial,sans-serif" font-size="13">Calibração validada</text>
+
+  <rect x="20" y="94" width="100" height="875" rx="12" fill="#172033" stroke="#334155"/>
+  <g font-family="Arial,sans-serif" text-anchor="middle">
+    <rect x="32" y="112" width="76" height="62" rx="9" fill="#1e293b"/><text x="70" y="139" fill="#94a3b8" font-size="22">⌖</text><text x="70" y="161" fill="#cbd5e1" font-size="11">Navegar</text>
+    <rect x="32" y="184" width="76" height="62" rx="9" fill="#064e3b" stroke="#34d399"/><text x="70" y="211" fill="#6ee7b7" font-size="22">↔</text><text x="70" y="233" fill="#d1fae5" font-size="11">Linha</text>
+    <rect x="32" y="256" width="76" height="62" rx="9" fill="#1e293b"/><circle cx="70" cy="281" r="11" fill="none" stroke="#cbd5e1" stroke-width="2"/><text x="70" y="307" fill="#cbd5e1" font-size="11">Círculo</text>
+    <rect x="32" y="328" width="76" height="62" rx="9" fill="#1e293b"/><path d="M54 361h30m-30 0 20-18m-20 18 18 17" fill="none" stroke="#cbd5e1" stroke-width="2"/><text x="70" y="379" fill="#cbd5e1" font-size="11">Ângulo</text>
+    <rect x="32" y="400" width="76" height="62" rx="9" fill="#1e293b"/><text x="70" y="427" fill="#cbd5e1" font-size="22">T</text><text x="70" y="449" fill="#cbd5e1" font-size="11">Anotação</text>
+    <path d="M34 481h72" stroke="#334155"/><text x="70" y="512" fill="#64748b" font-size="10">CAMADAS</text>
+    <text x="70" y="544" fill="#34d399" font-size="17">●</text><text x="70" y="564" fill="#94a3b8" font-size="10">Medidas</text>
+    <text x="70" y="600" fill="#64748b" font-size="17">○</text><text x="70" y="620" fill="#94a3b8" font-size="10">Referências</text>
+    <text x="70" y="932" fill="#64748b" font-size="18">↶</text><text x="70" y="952" fill="#94a3b8" font-size="10">Desfazer</text>
+  </g>
+
+  <rect x="134" y="94" width="1000" height="875" rx="12" fill="#090e18" stroke="#334155"/>
+  <rect x="146" y="106" width="976" height="851" rx="8" fill="#101827"/>
+  <rect x="146" y="106" width="976" height="851" rx="8" fill="url(#grid)"/>
+  <text x="170" y="140" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="13">PROJEÇÃO MEDIOLATERAL · JOELHO DIREITO · ORIGINAL 2048 × 1536 px</text>
+  <text x="170" y="165" fill="#64748b" font-family="Arial,sans-serif" font-size="11">Imagem ilustrativa sintética · Valores de demonstração</text>
+
+  <!-- Silhueta óssea desenhada como ilustração sintética, sem valor diagnóstico. -->
+  <g opacity=".9" filter="url(#glow)">
+    <path d="M565 218 C532 254 537 314 550 364 C565 421 581 458 568 492 C555 526 520 547 514 586 C507 630 529 666 564 672 C598 677 628 651 626 613 C624 580 605 554 606 520 C608 478 628 438 640 388 C652 336 660 278 631 235 C615 210 587 202 565 218Z" fill="url(#bone)" stroke="#f8fafc" stroke-width="2" opacity=".8"/>
+    <path d="M518 641 C480 657 456 690 463 729 C469 762 496 778 513 798 C534 823 538 859 547 891 L597 891 C590 847 589 812 608 784 C627 756 652 732 648 699 C645 672 620 652 588 644Z" fill="url(#bone)" stroke="#f8fafc" stroke-width="2" opacity=".75"/>
+    <path d="M650 692 C675 703 695 727 691 755 C688 777 671 795 655 810 C642 823 631 847 627 875 L603 875 C610 832 622 796 635 770 C647 744 630 719 620 704Z" fill="#bac4d3" stroke="#f8fafc" stroke-width="2" opacity=".7"/>
+    <ellipse cx="533" cy="641" rx="44" ry="36" fill="#dae1eb" opacity=".65"/>
+  </g>
+  <!-- Calibration reference retained in the reference layer. -->
+  <line x1="806" y1="262" x2="906" y2="262" stroke="#38bdf8" stroke-width="3" stroke-dasharray="8 5"/>
+  <circle cx="806" cy="262" r="5" fill="#38bdf8"/><circle cx="906" cy="262" r="5" fill="#38bdf8"/>
+  <rect x="817" y="232" width="143" height="24" rx="6" fill="#082f49" opacity=".96"/><text x="829" y="249" fill="#bae6fd" font-family="Arial,sans-serif" font-size="12">Referência · 25 mm</text>
+  <!-- Linear anatomical measurement -->
+  <line x1="538" y1="411" x2="636" y2="411" stroke="#34d399" stroke-width="3"/>
+  <circle cx="538" cy="411" r="5" fill="#34d399"/><circle cx="636" cy="411" r="5" fill="#34d399"/>
+  <path d="M538 400v22m98-22v22" stroke="#34d399" stroke-width="2"/>
+  <rect x="547" y="374" width="116" height="25" rx="6" fill="#064e3b"/><text x="559" y="391" fill="#d1fae5" font-family="Arial,sans-serif" font-size="13" font-weight="700">18,4 mm</text>
+  <!-- Circle measurement -->
+  <circle cx="572" cy="641" r="30" fill="#10b981" fill-opacity=".1" stroke="#34d399" stroke-width="3"/>
+  <line x1="572" y1="641" x2="602" y2="641" stroke="#a7f3d0" stroke-width="2"/><circle cx="572" cy="641" r="4" fill="#a7f3d0"/><circle cx="602" cy="641" r="4" fill="#a7f3d0"/>
+  <rect x="612" y="620" width="98" height="24" rx="6" fill="#064e3b"/><text x="623" y="637" fill="#d1fae5" font-family="Arial,sans-serif" font-size="12">Ø 11,2 mm</text>
+  <!-- Angle measurement -->
+  <path d="M540 791 L611 758 L659 812" fill="none" stroke="#fbbf24" stroke-width="3"/>
+  <path d="M572 776 A44 44 0 0 1 641 791" fill="none" stroke="#fbbf24" stroke-width="2"/>
+  <circle cx="611" cy="758" r="4" fill="#fbbf24"/>
+  <rect x="661" y="772" width="79" height="24" rx="6" fill="#713f12"/><text x="672" y="789" fill="#fef3c7" font-family="Arial,sans-serif" font-size="12">42,6°</text>
+  <rect x="168" y="899" width="421" height="36" rx="8" fill="#111c2c" stroke="#334155"/>
+  <text x="184" y="922" fill="#94a3b8" font-family="Arial,sans-serif" font-size="12">Zoom 125%</text><text x="286" y="922" fill="#475569" font-family="Arial,sans-serif" font-size="13">|</text><text x="306" y="922" fill="#94a3b8" font-family="Arial,sans-serif" font-size="12">Pan ativo ao segurar espaço</text>
+
+  <rect x="1150" y="94" width="430" height="875" rx="12" fill="#172033" stroke="#334155"/>
+  <text x="1178" y="133" fill="#f8fafc" font-family="Arial,sans-serif" font-size="18" font-weight="700">Medições</text>
+  <text x="1178" y="158" fill="#94a3b8" font-family="Arial,sans-serif" font-size="12">3 marcações · coordenadas na imagem original</text>
+  <rect x="1174" y="179" width="382" height="76" rx="10" fill="#102a26" stroke="#16805f"/>
+  <circle cx="1196" cy="202" r="5" fill="#34d399"/><text x="1211" y="207" fill="#d1fae5" font-family="Arial,sans-serif" font-size="13" font-weight="700">Calibração manual ativa</text>
+  <text x="1191" y="233" fill="#a7f3d0" font-family="Arial,sans-serif" font-size="12">0,250 mm/px</text><text x="1300" y="233" fill="#6b8b83" font-family="Arial,sans-serif" font-size="11">· linha de referência · 25,0 mm</text>
+  <text x="1178" y="291" fill="#64748b" font-family="Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="1">OBJETOS</text>
+  <rect x="1174" y="307" width="382" height="104" rx="10" fill="#1e293b" stroke="#34d399"/>
+  <rect x="1174" y="307" width="4" height="104" rx="2" fill="#34d399"/><text x="1192" y="333" fill="#e2e8f0" font-family="Arial,sans-serif" font-size="14" font-weight="700">Linha · comprimento</text><text x="1192" y="357" fill="#94a3b8" font-family="Arial,sans-serif" font-size="12">Pontos anatômicos selecionados</text><text x="1192" y="390" fill="#6ee7b7" font-family="Arial,sans-serif" font-size="20" font-weight="700">18,4 mm</text><text x="1487" y="390" fill="#64748b" font-family="Arial,sans-serif" font-size="11">Editar</text>
+  <rect x="1174" y="423" width="382" height="104" rx="10" fill="#1e293b" stroke="#34d399"/>
+  <rect x="1174" y="423" width="4" height="104" rx="2" fill="#34d399"/><text x="1192" y="449" fill="#e2e8f0" font-family="Arial,sans-serif" font-size="14" font-weight="700">Círculo · diâmetro</text><text x="1192" y="473" fill="#94a3b8" font-family="Arial,sans-serif" font-size="12">Centro e borda definidos</text><text x="1192" y="506" fill="#6ee7b7" font-family="Arial,sans-serif" font-size="20" font-weight="700">11,2 mm</text><text x="1487" y="506" fill="#64748b" font-family="Arial,sans-serif" font-size="11">Editar</text>
+  <rect x="1174" y="539" width="382" height="104" rx="10" fill="#1e293b" stroke="#fbbf24"/>
+  <rect x="1174" y="539" width="4" height="104" rx="2" fill="#fbbf24"/><text x="1192" y="565" fill="#e2e8f0" font-family="Arial,sans-serif" font-size="14" font-weight="700">Ângulo</text><text x="1192" y="589" fill="#94a3b8" font-family="Arial,sans-serif" font-size="12">Vértice entre os dois lados</text><text x="1192" y="622" fill="#fde68a" font-family="Arial,sans-serif" font-size="20" font-weight="700">42,6°</text><text x="1487" y="622" fill="#64748b" font-family="Arial,sans-serif" font-size="11">Editar</text>
+  <text x="1178" y="683" fill="#64748b" font-family="Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="1">DETALHES DA SELEÇÃO</text>
+  <text x="1180" y="714" fill="#94a3b8" font-family="Arial,sans-serif" font-size="12">Nome</text><rect x="1260" y="695" width="294" height="34" rx="6" fill="#0f172a" stroke="#334155"/><text x="1272" y="717" fill="#e2e8f0" font-family="Arial,sans-serif" font-size="12">Comprimento tibial</text>
+  <text x="1180" y="761" fill="#94a3b8" font-family="Arial,sans-serif" font-size="12">Visibilidade</text><rect x="1260" y="742" width="16" height="16" rx="3" fill="#10b981"/><path d="m1264 750 3 3 6-7" fill="none" stroke="#fff" stroke-width="1.5"/><text x="1285" y="755" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="12">Exibir na imagem</text>
+  <line x1="1178" y1="787" x2="1552" y2="787" stroke="#334155"/>
+  <text x="1178" y="820" fill="#64748b" font-family="Arial,sans-serif" font-size="11">A escala vem da calibração manual validada.</text>
+  <text x="1178" y="840" fill="#64748b" font-family="Arial,sans-serif" font-size="11">PixelSpacing DICOM é apenas informativo.</text>
+  <rect x="1174" y="876" width="382" height="48" rx="8" fill="#0f172a" stroke="#334155"/><text x="1190" y="906" fill="#cbd5e1" font-family="Arial,sans-serif" font-size="12">Salvo · revisão 4</text><circle cx="1534" cy="900" r="5" fill="#34d399"/>
+  <text x="24" y="990" fill="#475569" font-family="Arial,sans-serif" font-size="10">Mockup de produto para orientação de implementação · não usar valores nem ilustração como referência clínica</text>
+</svg>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">VetOrthoPlan — Calibração manual por linha</title>
+  <desc id="desc">Conceito de tela de planejamento pré-operatório TPLO com uma linha desenhada sobre marcador radiográfico, medida real informada e escala calculada.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#f8fbff"/><stop offset="1" stop-color="#edf3fb"/></linearGradient>
+    <linearGradient id="xray" x2="1" y2="1"><stop stop-color="#182a3c"/><stop offset=".55" stop-color="#34485a"/><stop offset="1" stop-color="#172538"/></linearGradient>
+    <linearGradient id="bone" x2="0" y2="1"><stop stop-color="#f2f4ed"/><stop offset=".5" stop-color="#b8c4c8"/><stop offset="1" stop-color="#e9eee8"/></linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#172b4d" flood-opacity=".10"/></filter>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect x="0" y="0" width="220" height="1000" fill="#092d4a"/>
+  <text x="28" y="54" fill="white" font-family="Arial,sans-serif" font-size="25" font-weight="700">VetOrthoPlan</text>
+  <g font-family="Arial,sans-serif" font-size="17" fill="#d7e7f6">
+    <text x="34" y="127">⌂  Painel</text><rect x="12" y="153" width="196" height="47" rx="9" fill="#07598a"/><text x="34" y="183" fill="white" font-weight="700">▣  Casos</text><text x="34" y="238">◉  Pacientes</text><text x="34" y="293">▤  Planejamentos</text><text x="34" y="348">▧  Biblioteca</text><text x="34" y="403">▥  Relatórios</text><text x="34" y="941">⚙  Configurações</text>
+  </g>
+  <rect x="220" y="0" width="1380" height="76" fill="white"/><text x="260" y="47" fill="#31516f" font-family="Arial,sans-serif" font-size="17">Buscar casos, pacientes ou planejamentos...</text><circle cx="1510" cy="38" r="23" fill="#116bc2"/><text x="1497" y="44" fill="white" font-family="Arial,sans-serif" font-size="15" font-weight="700">VP</text>
+  <text x="260" y="116" fill="#1b67a5" font-family="Arial,sans-serif" font-size="15">Casos  /  Thor  /  Planejamento pré-operatório TPLO</text>
+  <text x="260" y="159" fill="#092f56" font-family="Arial,sans-serif" font-size="30" font-weight="700">Calibrar radiografia</text><text x="260" y="190" fill="#607b96" font-family="Arial,sans-serif" font-size="17">Defina uma referência conhecida para converter pixels em milímetros.</text>
+  <rect x="260" y="216" width="860" height="665" rx="14" fill="white" filter="url(#shadow)"/><text x="286" y="254" fill="#123e68" font-family="Arial,sans-serif" font-size="18" font-weight="700">Radiografia — membro pélvico direito, mediolateral</text>
+  <rect x="286" y="274" width="808" height="548" rx="8" fill="url(#xray)"/>
+  <g opacity=".22" stroke="#b8c9d4" stroke-width="1"><path d="M315 330H1064M315 410H1064M315 490H1064M315 570H1064M315 650H1064M315 730H1064"/><path d="M390 295V800M490 295V800M590 295V800M690 295V800M790 295V800M890 295V800M990 295V800"/></g>
+  <path d="M664 309 C628 342 638 389 655 420 C669 445 676 471 674 503 L656 665 C650 703 665 739 686 763 C707 739 720 704 714 665 L696 503 C694 471 701 445 716 420 C733 389 741 342 704 309 C693 299 675 299 664 309Z" fill="url(#bone)" opacity=".94" stroke="#f8faf5" stroke-width="3"/>
+  <path d="M622 759 C601 773 588 793 591 808 L777 808 C779 791 762 773 742 759 C714 740 650 740 622 759Z" fill="url(#bone)" opacity=".82"/>
+  <rect x="475" y="454" width="386" height="44" rx="8" fill="#f6f8f6" opacity=".84" stroke="#b9c8cf" stroke-width="2"/><text x="494" y="482" fill="#3b4d5d" font-family="Arial,sans-serif" font-size="15">Marcador radiográfico de referência</text>
+  <line x1="529" y1="476" x2="810" y2="476" stroke="#21d4a1" stroke-width="5"/><circle cx="529" cy="476" r="9" fill="#fff" stroke="#11bd8c" stroke-width="4"/><circle cx="810" cy="476" r="9" fill="#fff" stroke="#11bd8c" stroke-width="4"/><text x="624" y="461" fill="#087a62" font-family="Arial,sans-serif" font-size="15" font-weight="700">linha de calibração</text>
+  <rect x="1170" y="216" width="372" height="665" rx="14" fill="white" filter="url(#shadow)"/><text x="1198" y="256" fill="#123e68" font-family="Arial,sans-serif" font-size="20" font-weight="700">Calibração</text>
+  <text x="1198" y="295" fill="#526d87" font-family="Arial,sans-serif" font-size="15">Método de referência</text><rect x="1198" y="309" width="146" height="42" rx="8" fill="#e9f3fc" stroke="#176fbb"/><text x="1227" y="336" fill="#145d9b" font-family="Arial,sans-serif" font-size="15" font-weight="700">━ Linha</text><rect x="1350" y="309" width="164" height="42" rx="8" fill="white" stroke="#d2dfeb"/><text x="1394" y="336" fill="#54708a" font-family="Arial,sans-serif" font-size="15">◯ Círculo</text>
+  <text x="1198" y="389" fill="#526d87" font-family="Arial,sans-serif" font-size="15">Comprimento real do marcador</text><rect x="1198" y="403" width="250" height="52" rx="8" fill="white" stroke="#9db3c7" stroke-width="2"/><text x="1216" y="437" fill="#173d61" font-family="Arial,sans-serif" font-size="20">25.0</text><rect x="1456" y="403" width="58" height="52" rx="8" fill="#f3f7fb"/><text x="1472" y="435" fill="#526d87" font-family="Arial,sans-serif" font-size="17">mm</text>
+  <text x="1198" y="487" fill="#526d87" font-family="Arial,sans-serif" font-size="15">Distância medida na imagem</text><text x="1198" y="515" fill="#173d61" font-family="Arial,sans-serif" font-size="18" font-weight="700">281.4 px</text>
+  <rect x="1198" y="539" width="316" height="92" rx="10" fill="#e9f8f2" stroke="#9bdcc6"/><text x="1216" y="568" fill="#187556" font-family="Arial,sans-serif" font-size="14" font-weight="700">ESCALA CALIBRADA</text><text x="1216" y="608" fill="#075e46" font-family="Arial,sans-serif" font-size="27" font-weight="700">0.0888 mm/px</text>
+  <rect x="1198" y="654" width="316" height="87" rx="10" fill="#f4f7fa"/><text x="1216" y="680" fill="#3d5d79" font-family="Arial,sans-serif" font-size="14" font-weight="700">PIXEL SPACING DICOM</text><text x="1216" y="704" fill="#526d87" font-family="Arial,sans-serif" font-size="15">0.1400 mm/px · apenas referência</text><text x="1216" y="727" fill="#788da1" font-family="Arial,sans-serif" font-size="13">Não substitui a calibração manual validada.</text>
+  <text x="1198" y="777" fill="#71879b" font-family="Arial,sans-serif" font-size="14">Arraste as extremidades para ajustar a linha.</text>
+  <rect x="1198" y="807" width="316" height="50" rx="9" fill="#116bc2"/><text x="1276" y="838" fill="white" font-family="Arial,sans-serif" font-size="17" font-weight="700">Salvar calibração</text>
+  <text x="260" y="927" fill="#7289a0" font-family="Arial,sans-serif" font-size="14">Conceito visual para desenvolvimento · medidas clínicas ilustrativas, confirmar com parceiro e imagens autorizadas.</text>
+</svg>

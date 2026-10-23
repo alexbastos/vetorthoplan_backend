@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,6 +114,30 @@ class SqlAlchemyImageUploadRepository:
             ImageUploadModel.image_id == image_id,
         )
         model = await self._session.scalar(statement)
+        return self._to_domain(model) if model else None
+
+    async def find_duplicate_for_case(
+        self,
+        tenant_id: UUID,
+        case_id: UUID,
+        sha256: str,
+        now: datetime,
+    ) -> ImageUpload | None:
+        model = await self._session.scalar(
+            select(ImageUploadModel)
+            .where(
+                ImageUploadModel.tenant_id == tenant_id,
+                ImageUploadModel.case_id == case_id,
+                ImageUploadModel.sha256 == sha256,
+                ImageUploadModel.status != ImageUploadStatus.CANCELLED.value,
+                or_(
+                    ImageUploadModel.completed_at.is_not(None),
+                    ImageUploadModel.expires_at > now,
+                ),
+            )
+            .order_by(ImageUploadModel.created_at, ImageUploadModel.id)
+            .limit(1)
+        )
         return self._to_domain(model) if model else None
 
     async def lock_case_for_upload(self, tenant_id: UUID, upload_id: UUID) -> bool:

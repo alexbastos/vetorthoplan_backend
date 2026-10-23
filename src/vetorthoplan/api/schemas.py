@@ -326,11 +326,56 @@ class PlanPoint(BaseModel):
     y: float = Field(ge=0, le=1)
 
 
+class PlanCalibrationResult(BaseModel):
+    calibration_id: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="Fingerprint da referência manual e das dimensões da imagem.",
+    )
+    reference_length_px: float = Field(gt=0, description="Comprimento da referência na imagem original.")
+    mm_per_pixel: float = Field(gt=0, description="Escala calculada a partir da medida manual informada.")
+
+
+class PlanDerivedMeasurement(BaseModel):
+    status: Literal["CALCULATED", "CALIBRATION_REQUIRED", "IMAGE_DIMENSIONS_REQUIRED"] = Field(
+        description="Estado do cálculo geométrico feito pelo backend."
+    )
+    calibration_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    values: dict[str, float] = Field(default_factory=dict, description="Valores geométricos derivados.")
+    units: dict[str, Literal["mm", "degrees"]] = Field(
+        default_factory=dict, description="Unidade de cada medida."
+    )
+
+
+class PlanTploSimulation(BaseModel):
+    status: Literal[
+        "SIMULATED", "CALIBRATION_REQUIRED", "IMAGE_DIMENSIONS_REQUIRED", "FRAGMENT_REQUIRED"
+    ]
+    calibration_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    center_px: dict[str, float] = Field(default_factory=dict)
+    radius_mm: float | None = Field(default=None, gt=0)
+    rotation_degrees: float | None = Field(default=None, ge=-180, le=180)
+    affine_matrix: list[list[float]] = Field(default_factory=list)
+
+
+class PlanFragment(BaseModel):
+    points: list[PlanPoint] = Field(min_length=3, max_length=500)
+    label: str | None = Field(default=None, max_length=120)
+
+
 class PlanReferenceLineCalibration(BaseModel):
     kind: Literal["REFERENCE_LINE"] = "REFERENCE_LINE"
     start: PlanPoint
     end: PlanPoint
     known_length_mm: float = Field(gt=0, le=10_000)
+    result: PlanCalibrationResult | None = Field(
+        default=None, description="Resultado calculado pelo backend; não enviar como fonte da calibração."
+    )
+
+    @model_validator(mode="after")
+    def validate_reference(self) -> "PlanReferenceLineCalibration":
+        if self.start == self.end:
+            raise ValueError("A linha de calibração precisa ter comprimento maior que zero")
+        return self
 
 
 class PlanReferenceCircleCalibration(BaseModel):
@@ -338,6 +383,15 @@ class PlanReferenceCircleCalibration(BaseModel):
     center: PlanPoint
     edge: PlanPoint
     known_diameter_mm: float = Field(gt=0, le=10_000)
+    result: PlanCalibrationResult | None = Field(
+        default=None, description="Resultado calculado pelo backend; não enviar como fonte da calibração."
+    )
+
+    @model_validator(mode="after")
+    def validate_reference(self) -> "PlanReferenceCircleCalibration":
+        if self.center == self.edge:
+            raise ValueError("O raio de calibração precisa ser maior que zero")
+        return self
 
 
 PlanCalibration = Annotated[
@@ -352,6 +406,15 @@ class PlanLine(BaseModel):
     start: PlanPoint
     end: PlanPoint
     label: str | None = Field(default=None, max_length=120)
+    measurement: PlanDerivedMeasurement | None = Field(
+        default=None, description="Resultado calculado pelo backend; valores do cliente são ignorados."
+    )
+
+    @model_validator(mode="after")
+    def validate_length(self) -> "PlanLine":
+        if self.start == self.end:
+            raise ValueError("A linha precisa ter comprimento maior que zero")
+        return self
 
 
 class PlanAngle(BaseModel):
@@ -361,6 +424,15 @@ class PlanAngle(BaseModel):
     vertex: PlanPoint
     end: PlanPoint
     label: str | None = Field(default=None, max_length=120)
+    measurement: PlanDerivedMeasurement | None = Field(
+        default=None, description="Resultado calculado pelo backend; valores do cliente são ignorados."
+    )
+
+    @model_validator(mode="after")
+    def validate_sides(self) -> "PlanAngle":
+        if self.start == self.vertex or self.end == self.vertex:
+            raise ValueError("Os lados do ângulo precisam ter comprimento maior que zero")
+        return self
 
 
 class PlanCircle(BaseModel):
@@ -369,6 +441,15 @@ class PlanCircle(BaseModel):
     center: PlanPoint
     edge: PlanPoint
     label: str | None = Field(default=None, max_length=120)
+    measurement: PlanDerivedMeasurement | None = Field(
+        default=None, description="Resultado calculado pelo backend; valores do cliente são ignorados."
+    )
+
+    @model_validator(mode="after")
+    def validate_radius(self) -> "PlanCircle":
+        if self.center == self.edge:
+            raise ValueError("O raio precisa ter comprimento maior que zero")
+        return self
 
 
 class PlanTplo(BaseModel):
@@ -378,6 +459,21 @@ class PlanTplo(BaseModel):
     edge: PlanPoint
     rotation_degrees: float = Field(ge=-180, le=180)
     label: str | None = Field(default=None, max_length=120)
+    measurement: PlanDerivedMeasurement | None = Field(
+        default=None, description="Resultado calculado pelo backend; valores do cliente são ignorados."
+    )
+    fragment: PlanFragment | None = Field(
+        default=None, description="Contorno do fragmento proximal no sistema normalizado da imagem."
+    )
+    simulation: PlanTploSimulation | None = Field(
+        default=None, description="Transformação geométrica calculada pelo backend."
+    )
+
+    @model_validator(mode="after")
+    def validate_radius(self) -> "PlanTplo":
+        if self.center == self.edge:
+            raise ValueError("O raio TPLO precisa ter comprimento maior que zero")
+        return self
 
 
 PlanObject = Annotated[PlanLine | PlanAngle | PlanCircle | PlanTplo, Field(discriminator="type")]
@@ -435,7 +531,8 @@ class ErrorResponse(BaseModel):
         default_factory=dict,
         description=(
             "Campos dependem de code. REQUEST_VALIDATION_ERROR: errors[], cada item com field e type. "
-            "CASE_VALIDATION_ERROR: field opcional. IMAGE_UPLOAD_OBJECT_INVALID: upload_id e reason."
+            "CASE_VALIDATION_ERROR: field opcional. IMAGE_UPLOAD_OBJECT_INVALID: upload_id e reason. "
+            "IMAGE_UPLOAD_DUPLICATE: existing_image_id opcional, se a sessão confirmada for visível."
         ),
     )
     trace_id: str | None = None

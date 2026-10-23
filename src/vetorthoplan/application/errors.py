@@ -27,6 +27,12 @@ class ImageUploadLimitExceededError(ValueError):
         self.limit = limit
 
 
+class ImageUploadDuplicateError(ValueError):
+    def __init__(self, existing_image_id: UUID | None = None) -> None:
+        super().__init__("Este arquivo já foi adicionado a este caso.")
+        self.existing_image_id = existing_image_id
+
+
 class ImageUploadIdempotencyConflictError(ValueError):
     def __init__(self) -> None:
         super().__init__("A chave de idempotência da sessão já foi usada com outros metadados.")
