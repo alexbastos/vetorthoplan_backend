@@ -4,6 +4,7 @@ from uuid import UUID
 
 from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.errors import (
+    ClinicalValidationError,
     ImageNotFoundError,
     ImageNotReadyError,
     PlanRevisionConflictError,
@@ -43,7 +44,13 @@ class GetImagePlan:
             return ImagePlanView(
                 image_id=image_id,
                 revision=0,
-                document={"schema_version": 1, "calibration": None, "tplo": None, "objects": []},
+                document={
+                    "schema_version": 1,
+                    "calibration": None,
+                    "tplo": None,
+                    "clinical_validation": None,
+                    "objects": [],
+                },
                 updated_at=None,
             )
         return ImagePlanView(image_id, plan.revision, plan.document, plan.updated_at)
@@ -83,6 +90,7 @@ class SaveImagePlan:
             width_px=image.width_px,
             height_px=image.height_px,
         )
+        _validate_clinical_review(document)
         current = await self._plans.get(context.tenant_id, image_id)
         if current is None:
             if base_revision != 0:
@@ -112,3 +120,33 @@ class SaveImagePlan:
                 latest = await self._plans.get(context.tenant_id, image_id)
                 raise PlanRevisionConflictError(latest.revision if latest else 0)
         return ImagePlanView(saved.image_id, saved.revision, saved.document, saved.updated_at)
+
+
+def _validate_clinical_review(document: dict[str, object]) -> None:
+    validation = document.get("clinical_validation")
+    if not isinstance(validation, dict) or validation.get("status") != "APPROVED":
+        return
+    tplo = document.get("tplo")
+    calibration = document.get("calibration")
+    if not isinstance(tplo, dict) or tplo.get("eligibility") != "ELIGIBLE":
+        raise ClinicalValidationError("A imagem TPLO precisa estar elegível antes da aprovação clínica")
+    if not isinstance(calibration, dict) or not isinstance(calibration.get("result"), dict):
+        raise ClinicalValidationError(
+            "A calibração manual precisa estar calculada antes da aprovação clínica"
+        )
+    required = validation.get("required_measurements")
+    if not isinstance(required, list) or not required:
+        raise ClinicalValidationError("Informe ao menos uma medida clínica antes da aprovação")
+    measurement = document.get("tplo_measurement")
+    if not isinstance(measurement, dict):
+        raise ClinicalValidationError("As medidas anatômicas ainda não foram calculadas")
+    available = {
+        "TPA": measurement.get("tpa_degrees") is not None,
+        "PLATEAU_AXIS": measurement.get("plateau_length_mm") is not None,
+        "TIBIAL_AXIS": measurement.get("tibial_axis_length_mm") is not None,
+    }
+    missing = [name for name in required if not available.get(name, False)]
+    if missing:
+        raise ClinicalValidationError(
+            "As medidas obrigatórias precisam estar identificadas no plano: " + ", ".join(missing)
+        )

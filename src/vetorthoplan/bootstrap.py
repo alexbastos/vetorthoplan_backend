@@ -12,6 +12,7 @@ from vetorthoplan.api.schemas import ErrorResponse
 from vetorthoplan.application.errors import (
     CaseDeletionConflictError,
     CaseNotFoundError,
+    ClinicalValidationError,
     IdempotencyKeyConflictError,
     ImageDeletionConflictError,
     ImageNotFoundError,
@@ -326,6 +327,14 @@ def create_app() -> FastAPI:
             details={"current_revision": exc.current_revision},
         )
         return JSONResponse(status_code=409, content=error.model_dump())
+
+    @app.exception_handler(ClinicalValidationError)
+    async def clinical_validation_error_handler(
+        _request: Request,
+        exc: ClinicalValidationError,
+    ) -> JSONResponse:
+        error = ErrorResponse(code="CLINICAL_VALIDATION_INVALID", message=str(exc))
+        return JSONResponse(status_code=422, content=error.model_dump())
 
     @app.exception_handler(RequestValidationError)
     async def request_validation_error_handler(

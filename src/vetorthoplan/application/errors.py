@@ -115,6 +115,11 @@ class PlanRevisionConflictError(ValueError):
         self.current_revision = current_revision
 
 
+class ClinicalValidationError(ValueError):
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+
+
 class IngestionJobNotFoundError(LookupError):
     def __init__(self, job_id: UUID) -> None:
         super().__init__("Job de ingestão não encontrado.")

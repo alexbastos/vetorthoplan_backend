@@ -12,9 +12,9 @@
     },
     "version": "0.9.0",
     "x-git-branch": "calibration",
-    "x-git-commit": "117b25de549ca15413a669cbf7821a691177c1fd",
+    "x-git-commit": "3d12072f2dd2f2bfe1b1788640603a8ce6b70d57",
     "x-git-working-tree-dirty": true,
-    "x-generated-at": "2026-10-23T17:16:34.397897+00:00"
+    "x-generated-at": "2026-10-23T17:35:20.979570+00:00"
   },
   "paths": {
     "/health/live": {
@@ -2698,6 +2698,36 @@
               }
             ]
           },
+          "tplo_landmarks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TploLandmarks"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tplo_measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TploClinicalMeasurement"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clinical_validation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TploClinicalValidation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "objects": {
             "items": {
               "oneOf": [
@@ -3154,6 +3184,196 @@
           "document"
         ],
         "title": "SaveImagePlanRequest"
+      },
+      "TploClinicalMeasurement": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1",
+              "CONVENTIONAL_FULL_MECHANICAL_AXIS_V1"
+            ],
+            "title": "Method"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CALCULATED",
+              "LANDMARKS_REQUIRED",
+              "IMAGE_DIMENSIONS_REQUIRED"
+            ],
+            "title": "Status"
+          },
+          "tpa_degrees": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tpa Degrees"
+          },
+          "plateau_length_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plateau Length Mm"
+          },
+          "tibial_axis_length_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tibial Axis Length Mm"
+          },
+          "calibration_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration Id"
+          },
+          "clinically_validated": {
+            "type": "boolean",
+            "const": false,
+            "title": "Clinically Validated",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "method",
+          "status"
+        ],
+        "title": "TploClinicalMeasurement"
+      },
+      "TploClinicalValidation": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "READY_FOR_REVIEW",
+              "APPROVED",
+              "REJECTED"
+            ],
+            "title": "Status",
+            "default": "DRAFT"
+          },
+          "orientation_confirmed": {
+            "type": "boolean",
+            "title": "Orientation Confirmed",
+            "default": false
+          },
+          "image_quality_confirmed": {
+            "type": "boolean",
+            "title": "Image Quality Confirmed",
+            "default": false
+          },
+          "calibration_confirmed": {
+            "type": "boolean",
+            "title": "Calibration Confirmed",
+            "default": false
+          },
+          "anatomical_references_confirmed": {
+            "type": "boolean",
+            "title": "Anatomical References Confirmed",
+            "default": false
+          },
+          "required_measurements": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "TPA",
+                "PLATEAU_AXIS",
+                "TIBIAL_AXIS"
+              ]
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Required Measurements"
+          },
+          "reviewer_notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Notes"
+          },
+          "rejection_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejection Reason"
+          }
+        },
+        "type": "object",
+        "title": "TploClinicalValidation"
+      },
+      "TploLandmarks": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1",
+              "CONVENTIONAL_FULL_MECHANICAL_AXIS_V1"
+            ],
+            "title": "Method",
+            "description": "Método do artigo Today's Veterinary Practice: cranioproximal medial plateau junto à inserção do CrCL, caudoproximal do côndilo medial e eixo mecânico completo.",
+            "default": "MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1"
+          },
+          "plateau_cranial": {
+            "$ref": "#/components/schemas/PlanPoint"
+          },
+          "plateau_caudal": {
+            "$ref": "#/components/schemas/PlanPoint"
+          },
+          "intercondylar_midpoint": {
+            "$ref": "#/components/schemas/PlanPoint"
+          },
+          "talus_center": {
+            "$ref": "#/components/schemas/PlanPoint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plateau_cranial",
+          "plateau_caudal",
+          "intercondylar_midpoint",
+          "talus_center"
+        ],
+        "title": "TploLandmarks"
       },
       "TploPlanMetadata": {
         "properties": {

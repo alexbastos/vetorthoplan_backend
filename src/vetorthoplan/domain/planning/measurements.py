@@ -103,6 +103,56 @@ def derive_plan_measurements(
                     radius_mm=values["radius"],
                 )
 
+    landmarks = result.get("tplo_landmarks")
+    result.pop("tplo_measurement", None)
+    if landmarks is not None:
+        if not width_px or not height_px:
+            result["tplo_measurement"] = {
+                "method": landmarks["method"],
+                "status": "IMAGE_DIMENSIONS_REQUIRED",
+                "clinically_validated": False,
+            }
+        else:
+            plateau_start = landmarks["plateau_cranial"]
+            plateau_end = landmarks["plateau_caudal"]
+            axis_start = landmarks["intercondylar_midpoint"]
+            axis_end = landmarks["talus_center"]
+            plateau_dx = (plateau_end["x"] - plateau_start["x"]) * width_px
+            plateau_dy = (plateau_end["y"] - plateau_start["y"]) * height_px
+            axis_dx = (axis_end["x"] - axis_start["x"]) * width_px
+            axis_dy = (axis_end["y"] - axis_start["y"]) * height_px
+            axis_length = math.hypot(axis_dx, axis_dy)
+            plateau_length = math.hypot(plateau_dx, plateau_dy)
+            if axis_length > 0 and plateau_length > 0:
+                cross_product = abs(plateau_dx * axis_dy - plateau_dy * axis_dx)
+                dot_product = plateau_dx * axis_dx + plateau_dy * axis_dy
+                tpa = math.degrees(math.atan2(abs(dot_product), cross_product))
+                measurement = {
+                    "method": landmarks["method"],
+                    "status": "CALCULATED",
+                    "tpa_degrees": tpa,
+                    "clinically_validated": False,
+                }
+                if mm_per_pixel is not None:
+                    measurement.update(
+                        plateau_length_mm=plateau_length * mm_per_pixel,
+                        tibial_axis_length_mm=axis_length * mm_per_pixel,
+                        calibration_id=calibration_id,
+                    )
+                result["tplo_measurement"] = measurement
+            else:
+                result["tplo_measurement"] = {
+                    "method": landmarks["method"],
+                    "status": "LANDMARKS_REQUIRED",
+                    "clinically_validated": False,
+                }
+    elif result.get("tplo") is not None:
+        result["tplo_measurement"] = {
+            "method": "MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1",
+            "status": "LANDMARKS_REQUIRED",
+            "clinically_validated": False,
+        }
+
     return result
 
 

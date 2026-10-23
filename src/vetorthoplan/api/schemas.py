@@ -505,10 +505,71 @@ class TploPlanMetadata(BaseModel):
         return self
 
 
+class TploLandmarks(BaseModel):
+    method: Literal[
+        "MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1",
+        "CONVENTIONAL_FULL_MECHANICAL_AXIS_V1",
+    ] = Field(
+        default="MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1",
+        description=(
+            "Método do artigo Today's Veterinary Practice: cranioproximal medial plateau "
+            "junto à inserção do CrCL, caudoproximal do côndilo medial e eixo mecânico completo."
+        ),
+    )
+    plateau_cranial: PlanPoint
+    plateau_caudal: PlanPoint
+    intercondylar_midpoint: PlanPoint
+    talus_center: PlanPoint
+
+
+class TploClinicalMeasurement(BaseModel):
+    method: Literal[
+        "MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1",
+        "CONVENTIONAL_FULL_MECHANICAL_AXIS_V1",
+    ]
+    status: Literal["CALCULATED", "LANDMARKS_REQUIRED", "IMAGE_DIMENSIONS_REQUIRED"]
+    tpa_degrees: float | None = Field(default=None, ge=0, le=90)
+    plateau_length_mm: float | None = Field(default=None, gt=0)
+    tibial_axis_length_mm: float | None = Field(default=None, gt=0)
+    calibration_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    clinically_validated: Literal[False] = False
+
+
+class TploClinicalValidation(BaseModel):
+    status: Literal["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED"] = "DRAFT"
+    orientation_confirmed: bool = False
+    image_quality_confirmed: bool = False
+    calibration_confirmed: bool = False
+    anatomical_references_confirmed: bool = False
+    required_measurements: list[Literal["TPA", "PLATEAU_AXIS", "TIBIAL_AXIS"]] = Field(
+        default_factory=list, max_length=10
+    )
+    reviewer_notes: str | None = Field(default=None, max_length=2_000)
+    rejection_reason: str | None = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def validate_state(self) -> "TploClinicalValidation":
+        if self.status == "REJECTED" and not (self.rejection_reason or "").strip():
+            raise ValueError("rejection_reason é obrigatório quando a validação é rejeitada")
+        if self.status == "READY_FOR_REVIEW" and not all(
+            (
+                self.orientation_confirmed,
+                self.image_quality_confirmed,
+                self.calibration_confirmed,
+                self.anatomical_references_confirmed,
+            )
+        ):
+            raise ValueError("Todos os itens do checklist devem estar confirmados para revisão")
+        return self
+
+
 class PlanDocument(BaseModel):
     schema_version: Literal[1] = 1
     calibration: PlanCalibration | None = None
     tplo: TploPlanMetadata | None = None
+    tplo_landmarks: TploLandmarks | None = None
+    tplo_measurement: TploClinicalMeasurement | None = None
+    clinical_validation: TploClinicalValidation | None = None
     objects: list[PlanObject] = Field(default_factory=list, max_length=500)
 
 

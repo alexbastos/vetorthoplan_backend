@@ -104,9 +104,11 @@ O envio binário usa o formulário pré-assinado: navegador → storage. Criaç�
 ### 4.2 Validar e calibrar
 
 - confirmar projeção, lado e orientação da radiografia;
+- no checklist para TPA, confirmar incidência lateral verdadeira, sobreposição dos côndilos, alinhamento da tíbia e inclusão de toda a tíbia; pedir revisão quando osteófitos ou rotação dificultarem os marcos;
 - oferecer calibração por linha ou círculo;
 - usar as pranchas conceituais de [calibração por linha](frontend/calibracao-linha-v1.svg) e [calibração por círculo](frontend/calibracao-circulo-v1.svg) como referência inicial de interface;
 - solicitar o comprimento/diâmetro real em milímetros;
+- posicionar a referência de calibração próxima ao joelho e no mesmo plano/altura;
 - diferenciar pixel spacing informativo de calibração clínica validada;
 - bloquear medições em milímetros enquanto não houver calibração válida;
 - avisar que alterar a calibração pode invalidar medidas dependentes.
@@ -132,6 +134,15 @@ O envio binário usa o formulário pré-assinado: navegador → storage. Criaç�
 - mostrar a prévia rotacionada ao redor do centro da osteotomia, mantendo o contorno de origem editável;
 - exibir TPA, ângulo de rotação, deslocamento de corda e medidas auxiliares apenas após validação clínica das fórmulas;
 - preservar internamente a precisão e arredondar somente na apresentação.
+
+### 4.4.1 Validar medidas clínicas
+
+- manter `clinical_validation.status` em `DRAFT`, `READY_FOR_REVIEW`, `APPROVED` ou `REJECTED`;
+- exigir confirmação de orientação, qualidade, calibração e referências anatômicas antes de enviar para revisão;
+- identificar os objetos obrigatórios com os rótulos `TPA`, `PLATEAU_AXIS` e `TIBIAL_AXIS` quando selecionados;
+- tratar `422 CLINICAL_VALIDATION_INVALID` como bloqueio de aprovação e mostrar a pendência devolvida pela API;
+- para planejamento de rotação, apresentar a consulta à tabela oficial VOI por TPA pré-operatório e diâmetro da lâmina; o resultado deve ser conferido pelo cirurgião;
+- preservar o histórico de revisão e o profissional responsável no fluxo do frontend.
 
 ### 4.5 Posicionar implante
 

@@ -12,7 +12,7 @@ A imagem precisa pertencer ao tenant atual e estar em `READY`. Se ainda não hou
 {
   "image_id": "<uuid>",
   "revision": 0,
-  "document": {"schema_version": 1, "calibration": null, "tplo": null, "objects": []},
+  "document": {"schema_version": 1, "calibration": null, "tplo": null, "clinical_validation": null, "objects": []},
   "updated_at": null
 }
 ```
@@ -56,6 +56,18 @@ O bloco `tplo` registra `laterality` (`LEFT`/`RIGHT`) e `projection` (`MEDIOLATE
 A primeira gravação usa revisão `0`; a resposta persistida passa a `1`. Cada atualização incrementa a revisão. Se outra gravação avançar a revisão antes desta requisição, a API responde `409 PLAN_REVISION_CONFLICT` com a revisão atual em `details.current_revision`; recarregue o plano antes de reaplicar alterações. Cada PUT substitui o documento geométrico inteiro.
 
 ## Resultados de medição
+
+## Validação clínica
+
+O documento aceita `clinical_validation` para acompanhar o checklist do veterinário. Os estados são `DRAFT`, `READY_FOR_REVIEW`, `APPROVED` e `REJECTED`. Para `READY_FOR_REVIEW`, orientação, qualidade da imagem, calibração e referências anatômicas precisam estar confirmadas. `REJECTED` exige `rejection_reason`.
+
+`APPROVED` só é persistido quando a imagem TPLO está `ELIGIBLE`, a calibração manual foi calculada e todas as medidas em `required_measurements` foram calculadas. Caso contrário, a API responde `422 CLINICAL_VALIDATION_INVALID`.
+
+Para calcular TPA, envie `tplo_landmarks` com `plateau_cranial`, `plateau_caudal`, `intercondylar_midpoint` e `talus_center`. O método preferido `MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1` segue o artigo Today's Veterinary Practice: o marco cranial fica junto à inserção tibial do CrCL, caudal ao sulco do extensor digital longo; o marco caudal é o ponto mais caudoproximal do côndilo tibial medial. O eixo mecânico completo liga o ponto médio das eminências intercondilares ao centro do tálus. O TPA é o ângulo entre a linha do platô e a perpendicular ao eixo. A resposta persiste `tplo_measurement.tpa_degrees`; com calibração também inclui comprimentos do platô/eixo em mm e o `calibration_id`.
+
+`tplo_measurement.clinically_validated` permanece `false`: o cálculo reproduz a geometria descrita, mas o parceiro clínico ainda precisa confirmar os marcos, tolerâncias e desempenho com radiografias autorizadas. A qualidade da radiografia precisa ser revisada: incidência lateral verdadeira, côndilos femorais e tibiais superpostos, tíbia alinhada, feixe centrado no joelho e toda a tíbia incluída. O marcador de calibração deve ficar próximo do joelho e no mesmo plano/altura. Osteófitos ou posicionamento ruim podem dificultar marcos e alterar a medida. Consulte [Today's Veterinary Practice: como medir o TPA](https://todaysveterinarypractice.com/orthopedics/small-animal-cruciate-disease-tibial-plateau-angle/) e estudos sobre [eixo completo versus eixos proximais](https://pubmed.ncbi.nlm.nih.gov/13677389/) e [variação do marco caudal](https://pubmed.ncbi.nlm.nih.gov/24003987/).
+
+Para a etapa de rotação, registre o TPA pré-operatório e o diâmetro da lâmina escolhida. O artigo de [Garofallo](https://www.vetgarofallo.com/post/tabela-tplo) direciona à tabela oficial de rotação TPLO da [BioMedtrix/VOI](https://biomedtrix.com/tplo-rotation-guide-chart-1-15-18-2/), cujo objetivo de exemplo é slope pós-operatório aproximado de 5°. Não extrapole valores fora da tabela nem transforme o exemplo publicado (TPA 25°, lâmina 24 mm, rotação 8,38 mm) em fórmula universal; a seleção e conferência cabem ao cirurgião.
 
 Ao salvar, o backend preserva pontos normalizados e recalcula os resultados derivados usando a largura e altura em pixels da imagem original `READY`. Resultados enviados pelo cliente são descartados e recalculados; o frontend deve enviar a geometria e não tentar definir a escala nem os valores medidos.
 
