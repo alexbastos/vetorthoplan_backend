@@ -45,6 +45,9 @@ class CompleteImageUpload:
         self._storage_clock_skew = timedelta(seconds=storage_clock_skew_seconds)
 
     async def execute(self, upload_id: UUID, context: TenantContext) -> CompletedImageUpload:
+        lock_case = getattr(self._repository, "lock_case_for_upload", None)
+        if lock_case is not None and not await lock_case(context.tenant_id, upload_id):
+            raise ImageUploadNotFoundError(upload_id)
         upload = await self._repository.lock_by_id(context.tenant_id, upload_id)
         if upload is None:
             raise ImageUploadNotFoundError(upload_id)

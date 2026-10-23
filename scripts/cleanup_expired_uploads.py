@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from vetorthoplan.config.settings import get_settings
 from vetorthoplan.infrastructure.clock import SystemClock
+from vetorthoplan.infrastructure.database.case_repository import SqlAlchemyCaseRepository
 from vetorthoplan.infrastructure.database.image_upload_repository import (
     SqlAlchemyImageUploadRepository,
 )
@@ -28,6 +29,7 @@ async def cleanup() -> int:
     try:
         async with sessions() as session:
             repository = SqlAlchemyImageUploadRepository(session)
+            cases = SqlAlchemyCaseRepository(session)
             while True:
                 cleanup_cutoff = SystemClock().now() - timedelta(minutes=15)
                 expired = await repository.list_expired(cleanup_cutoff, limit=500)
@@ -46,6 +48,22 @@ async def cleanup() -> int:
                 if failures:
                     break
                 if len(expired) < 500:
+                    break
+            while True:
+                keys = await cases.list_due_storage_cleanup(SystemClock().now(), limit=500)
+                if not keys:
+                    break
+                for object_key in keys:
+                    try:
+                        await storage.delete_object(object_key)
+                        await cases.finish_storage_cleanup(object_key)
+                        await session.commit()
+                        removed += 1
+                    except Exception:
+                        await session.rollback()
+                        failures += 1
+                        print("Não foi possível concluir uma limpeza tardia de objeto")
+                if failures or len(keys) < 500:
                     break
     finally:
         await engine.dispose()

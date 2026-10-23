@@ -135,9 +135,11 @@ As pranchas de referência por funcionalidade estão indexadas em [REFERENCIAS_V
 
 ## Contexto de identidade temporário
 
-Enquanto o contrato AUTH-01 não for fechado com os demais projetos, o ambiente `local`/`test` usa IDs fixos configurados por `LOCAL_TENANT_ID` e `LOCAL_ACTOR_ID`. Esses valores não chegam pelo payload da API.
+Nos ambientes `local`, `development` e `test`, `IDENTITY_MODE=local` usa IDs fixos configurados por `LOCAL_TENANT_ID` e `LOCAL_ACTOR_ID`. Esses valores não chegam pelo payload da API.
 
-`IDENTITY_MODE=local` é rejeitado em `staging` e `production`. O adapter JWT será implementado posteriormente sem alterar o caso de uso de criação de casos.
+Com `IDENTITY_MODE=jwt`, configure `JWT_ISSUER`, `JWT_AUDIENCE=vetorthoplan-api` e `JWKS_URL`. O backend valida tokens RS256 com cache de JWKS, issuer e audiência exatos, `tokenUse=access`, sessão e claims obrigatórios. Os IDs externos `sub` e `org_id` são mapeados de forma idempotente para UUIDs internos nas tabelas `auth_subject_mappings` e `auth_organization_mappings`; antes de habilitar esse modo, aplique `alembic upgrade head` no banco correto. `JWKS_CACHE_SECONDS`, `JWKS_TIMEOUT_SECONDS` e `JWT_CLOCK_SKEW_SECONDS` controlam cache, timeout e tolerância de relógio.
+
+`IDENTITY_MODE=local` é rejeitado em `staging` e `production`; nesses ambientes configure o modo JWT. A audiência dedicada é emitida pela rota de token de organização da `authentication_api` após validar o vínculo ativo do membro.
 
 ## Endpoints de casos
 
@@ -196,4 +198,4 @@ ruff check .
 
 ## Migrations
 
-As migrations versionadas estão em `migrations/versions/`, incluindo casos (`20260915_0001`), sessões (`20260917_0002`), confirmação (`20260917_0003`), fila durável (`20260917_0004`), estados de processamento (`20260918_0005`), prévias (`20260918_0006`), planos geométricos (`20260918_0007`), idempotência de casos (`20261016_0008`), origem da idade (`20261019_0009`), falha operacional da imagem (`20261019_0010`), idempotência de sessões (`20261019_0011`) e cancelamento (`20261019_0012`). Aplique-as com `alembic upgrade head` no banco configurado.
+As migrations versionadas estão em `migrations/versions/`, incluindo casos (`20260915_0001`), sessões (`20260917_0002`), confirmação (`20260917_0003`), fila durável (`20260917_0004`), estados de processamento (`20260918_0005`), prévias (`20260918_0006`), planos geométricos (`20260918_0007`), idempotência de casos (`20261016_0008`), origem da idade (`20261019_0009`), falha operacional da imagem (`20261019_0010`), idempotência de sessões (`20261019_0011`), cancelamento (`20261019_0012`) e mapeamento de usuários/organizações do provedor de identidade (`20261020_0013`). Aplique-as com `alembic upgrade head` no banco configurado.

@@ -1,14 +1,16 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Query, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 
 from vetorthoplan.api.dependencies import (
     CreateCaseDependency,
     CreateImageUploadDependency,
+    DeleteCaseDependency,
     GetCaseDependency,
     ListCasesDependency,
     TenantContextDependency,
+    get_tenant_context,
 )
 from vetorthoplan.api.pagination import decode_case_cursor, encode_case_cursor
 from vetorthoplan.api.schemas import (
@@ -30,7 +32,11 @@ from vetorthoplan.application.use_cases import (
 )
 from vetorthoplan.domain.cases import CaseStatus
 
-router = APIRouter(prefix="/api/v1/cases", tags=["Cases"])
+router = APIRouter(
+    prefix="/api/v1/cases",
+    tags=["Cases"],
+    dependencies=[Depends(get_tenant_context)],
+)
 
 
 @router.get(
@@ -98,6 +104,29 @@ async def get_case(
 ) -> CaseResponse:
     case = await use_case.execute(case_id, context)
     return CaseResponse.from_domain(case)
+
+
+@router.delete(
+    "/{case_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir caso clínico e recursos associados",
+    description=(
+        "Remove o caso, imagens, prévias, planos, jobs e sessões de upload. A remoção é "
+        "recusada enquanto uma URL de upload ainda for válida ou houver job QUEUED/PROCESSING. "
+        "Se a remoção do storage falhar, os registros permanecem para permitir repetição segura."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Caso não encontrado no tenant ativo"},
+        409: {"model": ErrorResponse, "description": "Upload ou processamento ativo"},
+    },
+)
+async def delete_case(
+    case_id: UUID,
+    context: TenantContextDependency,
+    use_case: DeleteCaseDependency,
+) -> Response:
+    await use_case.execute(case_id, context)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(

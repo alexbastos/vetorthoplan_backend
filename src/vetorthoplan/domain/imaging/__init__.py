@@ -1,4 +1,10 @@
 from vetorthoplan.domain.imaging.entities import ImageKind, ImageUpload, ImageUploadStatus
-from vetorthoplan.domain.imaging.errors import ImagingValidationError
+from vetorthoplan.domain.imaging.errors import ImageDisplayNameValidationError, ImagingValidationError
 
-__all__ = ["ImageKind", "ImageUpload", "ImageUploadStatus", "ImagingValidationError"]
+__all__ = [
+    "ImageDisplayNameValidationError",
+    "ImageKind",
+    "ImageUpload",
+    "ImageUploadStatus",
+    "ImagingValidationError",
+]

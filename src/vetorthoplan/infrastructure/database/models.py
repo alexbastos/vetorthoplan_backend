@@ -26,6 +26,44 @@ class Base(DeclarativeBase):
     pass
 
 
+class AuthSubjectMappingModel(Base):
+    """Maps an authentication service subject to the backend's internal actor UUID."""
+
+    __tablename__ = "auth_subject_mappings"
+    __table_args__ = (
+        UniqueConstraint("issuer", "subject", name="uq_auth_subject_mappings_issuer_subject"),
+    )
+
+    actor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    issuer: Mapped[str] = mapped_column(String(500), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AuthOrganizationMappingModel(Base):
+    """Maps an authentication service organization CUID to an internal tenant UUID."""
+
+    __tablename__ = "auth_organization_mappings"
+    __table_args__ = (
+        UniqueConstraint(
+            "issuer",
+            "organization_id",
+            name="uq_auth_organization_mappings_issuer_organization",
+        ),
+    )
+
+    tenant_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    issuer: Mapped[str] = mapped_column(String(500), nullable=False)
+    organization_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PendingStorageCleanupModel(Base):
+    __tablename__ = "pending_storage_cleanups"
+    object_key: Mapped[str] = mapped_column(String(1024), primary_key=True)
+    cleanup_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class CaseModel(Base):
     __tablename__ = "clinical_cases"
     __table_args__ = (
@@ -135,6 +173,7 @@ class ImageUploadModel(Base):
         nullable=False,
     )
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
     media_type: Mapped[str] = mapped_column(String(64), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)

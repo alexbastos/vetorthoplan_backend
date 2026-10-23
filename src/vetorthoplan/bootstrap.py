@@ -10,6 +10,7 @@ from vetorthoplan.api.routes.images import router as images_router
 from vetorthoplan.api.routes.plans import router as plans_router
 from vetorthoplan.api.schemas import ErrorResponse
 from vetorthoplan.application.errors import (
+    CaseDeletionConflictError,
     CaseNotFoundError,
     IdempotencyKeyConflictError,
     ImageDeletionConflictError,
@@ -29,7 +30,7 @@ from vetorthoplan.application.errors import (
     PlanRevisionConflictError,
 )
 from vetorthoplan.domain.cases import CaseValidationError
-from vetorthoplan.domain.imaging import ImagingValidationError
+from vetorthoplan.domain.imaging import ImageDisplayNameValidationError, ImagingValidationError
 
 
 def create_app() -> FastAPI:
@@ -40,8 +41,8 @@ def create_app() -> FastAPI:
         description=(
             "Vertical slices do MVP TPLO: casos, upload e processamento inicial de radiografias. "
             "Use apenas dados sintéticos ou formalmente desidentificados neste estágio. "
-            "Esta versão ainda usa identidade local e não valida Bearer JWT; não está pronta "
-            "para homologação/produção com dados clínicos."
+            "A identidade é configurada por ambiente; o modo JWT valida tokens da authentication_api "
+            "e mantém isolamento clínico por tenant."
         ),
         contact={"name": "VetOrthoPlan"},
         license_info={"name": "Proprietary"},
@@ -61,6 +62,17 @@ def create_app() -> FastAPI:
             details={"case_id": str(exc.case_id)},
         )
         return JSONResponse(status_code=404, content=error.model_dump())
+
+    @app.exception_handler(CaseDeletionConflictError)
+    async def case_deletion_conflict_handler(
+        _request: Request, exc: CaseDeletionConflictError
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="CASE_DELETE_NOT_ALLOWED",
+            message=str(exc),
+            details={"reason": exc.reason, "case_id": str(exc.case_id)},
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
 
     @app.exception_handler(InvalidCursorError)
     async def invalid_cursor_error_handler(
@@ -103,6 +115,17 @@ def create_app() -> FastAPI:
     ) -> JSONResponse:
         error = ErrorResponse(
             code="IMAGE_UPLOAD_VALIDATION_ERROR",
+            message=str(exc),
+            details={"field": exc.field} if exc.field else {},
+        )
+        return JSONResponse(status_code=422, content=error.model_dump())
+
+    @app.exception_handler(ImageDisplayNameValidationError)
+    async def image_display_name_validation_handler(
+        _request: Request, exc: ImageDisplayNameValidationError
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IMAGE_DISPLAY_NAME_INVALID",
             message=str(exc),
             details={"field": exc.field} if exc.field else {},
         )

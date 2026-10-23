@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from vetorthoplan.api.dependencies import (
     GetImagePlanDependency,
     SaveImagePlanDependency,
     TenantContextDependency,
+    get_tenant_context,
 )
 from vetorthoplan.api.schemas import (
     ErrorResponse,
@@ -13,7 +14,7 @@ from vetorthoplan.api.schemas import (
     SaveImagePlanRequest,
 )
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api/v1", dependencies=[Depends(get_tenant_context)])
 
 
 @router.get(

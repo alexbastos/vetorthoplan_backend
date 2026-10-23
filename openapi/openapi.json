@@ -3,7 +3,7 @@
   "info": {
     "title": "VetOrthoPlan Backend API",
     "summary": "API clínica para planejamento ortopédico veterinário",
-    "description": "Vertical slices do MVP TPLO: casos, upload e processamento inicial de radiografias. Use apenas dados sintéticos ou formalmente desidentificados neste estágio. Esta versão ainda usa identidade local e não valida Bearer JWT; não está pronta para homologação/produção com dados clínicos.",
+    "description": "Vertical slices do MVP TPLO: casos, upload e processamento inicial de radiografias. Use apenas dados sintéticos ou formalmente desidentificados neste estágio. A identidade é configurada por ambiente; o modo JWT valida tokens da authentication_api e mantém isolamento clínico por tenant.",
     "contact": {
       "name": "VetOrthoPlan"
     },
@@ -11,10 +11,10 @@
       "name": "Proprietary"
     },
     "version": "0.9.0",
-    "x-git-branch": "master",
-    "x-git-commit": "2c415c76c22a023c2488d4f0cb8b51c2030324f9",
+    "x-git-branch": "vet_auth_01",
+    "x-git-commit": "bca4fb2fba930d1422930a859531f118801e1010",
     "x-git-working-tree-dirty": true,
-    "x-generated-at": "2026-10-20T21:42:21.811669+00:00"
+    "x-generated-at": "2026-10-23T16:16:12.071909+00:00"
   },
   "paths": {
     "/health/live": {
@@ -77,6 +77,11 @@
         "summary": "Listar casos clínicos",
         "description": "Lista somente os casos do tenant ativo, em ordem decrescente de criação. Aceita busca textual, filtro por status e paginação por cursor opaco.",
         "operationId": "list_cases_api_v1_cases_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -179,6 +184,11 @@
         "summary": "Criar caso clínico",
         "description": "Cria um caso no tenant ativo, inicialmente no estado DRAFT. No ambiente local, tenant e usuário são fornecidos por um adapter temporário; eles nunca são aceitos no corpo da requisição. Com Idempotency-Key, repetir a mesma operação e o mesmo corpo devolve o caso original. A chave é vinculada ao tenant/ator, não expira e não pode ser reutilizada com outro corpo.",
         "operationId": "create_case_api_v1_cases_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -253,6 +263,11 @@
         "summary": "Consultar caso clínico",
         "description": "Retorna um caso somente quando ele pertence ao tenant ativo.",
         "operationId": "get_case_api_v1_cases__case_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "case_id",
@@ -297,6 +312,66 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Cases"
+        ],
+        "summary": "Excluir caso clínico e recursos associados",
+        "description": "Remove o caso, imagens, prévias, planos, jobs e sessões de upload. A remoção é recusada enquanto uma URL de upload ainda for válida ou houver job QUEUED/PROCESSING. Se a remoção do storage falhar, os registros permanecem para permitir repetição segura.",
+        "operationId": "delete_case_api_v1_cases__case_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Caso não encontrado no tenant ativo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Upload ou processamento ativo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/cases/{case_id}/image-uploads": {
@@ -307,6 +382,11 @@
         "summary": "Criar sessão de upload de radiografia",
         "description": "Valida os metadados do arquivo, registra uma sessão PENDING_UPLOAD em quarentena e devolve um formulário POST pré-assinado. O binário deve ser enviado diretamente ao object storage; esta resposta ainda não significa que a imagem foi ingerida. Idempotency-Key é obrigatório: a mesma chave e os mesmos metadados recuperam a sessão.",
         "operationId": "create_image_upload_api_v1_cases__case_id__image_uploads_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "case_id",
@@ -394,6 +474,11 @@
         "summary": "Confirmar upload de radiografia",
         "description": "Confere no object storage o tamanho, tipo, checksum SHA-256, metadado da sessão e horário do envio. Quando todos os valores correspondem, promove a sessão para QUARANTINED e agenda um job durável de ingestão. A operação e o agendamento são idempotentes; o processamento clínico ocorre de forma assíncrona.",
         "operationId": "complete_image_upload_api_v1_image_uploads__upload_id__complete_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "upload_id",
@@ -458,6 +543,11 @@
         "summary": "Cancelar sessão de upload",
         "description": "Cancela a sessão PENDING_UPLOAD e remove o objeto atual. A URL pré-assinada não pode ser revogada; uploads tardios são removidos pela rotina de limpeza após expires_at.",
         "operationId": "cancel_image_upload_api_v1_image_uploads__upload_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "upload_id",
@@ -514,6 +604,11 @@
         ],
         "summary": "Consultar processamento de imagem",
         "operationId": "get_ingestion_job_api_v1_jobs__job_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "job_id",
@@ -568,6 +663,11 @@
         "summary": "Consultar processamento associado à imagem",
         "description": "Retorna job nulo se a confirmação do upload ainda não o tiver criado.",
         "operationId": "get_image_ingestion_job_api_v1_images__image_id__job_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "image_id",
@@ -622,6 +722,11 @@
         "summary": "Reenfileirar job com falha operacional",
         "description": "Reaproveita o mesmo job e o mesmo arquivo confirmado. Apenas jobs FAILED podem ser reenfileirados; rejeições de conteúdo exigem novo upload corrigido.",
         "operationId": "retry_ingestion_job_api_v1_jobs__job_id__retry_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "job_id",
@@ -686,6 +791,11 @@
         "summary": "Excluir imagem",
         "description": "Remove original, prévia, plano e registros do job. A exclusão é recusada enquanto o job estiver QUEUED/PROCESSING ou enquanto uma sessão de upload ainda for válida.",
         "operationId": "delete_image_api_v1_images__image_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "image_id",
@@ -740,6 +850,11 @@
         ],
         "summary": "Consultar imagem",
         "operationId": "get_image_api_v1_images__image_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "image_id",
@@ -784,6 +899,73 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Alterar nome de exibição da imagem",
+        "description": "Altera somente o nome apresentado na interface. O nome original, arquivo, prévia, checksum e processamento permanecem inalterados. A extensão original é preservada.",
+        "operationId": "rename_image_api_v1_images__image_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameImageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Imagem não encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/cases/{case_id}/images": {
@@ -793,6 +975,11 @@
         ],
         "summary": "Listar imagens do caso",
         "operationId": "list_case_images_api_v1_cases__case_id__images_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "case_id",
@@ -846,6 +1033,11 @@
         ],
         "summary": "Obter acesso temporário à prévia da imagem",
         "operationId": "get_image_preview_api_v1_images__image_id__preview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "image_id",
@@ -909,6 +1101,11 @@
         ],
         "summary": "Get Image Plan",
         "operationId": "get_image_plan_api_v1_images__image_id__plan_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "image_id",
@@ -970,6 +1167,11 @@
         ],
         "summary": "Save Image Plan",
         "operationId": "save_image_plan_api_v1_images__image_id__plan_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "image_id",
@@ -1853,6 +2055,17 @@
             "type": "string",
             "title": "Original Filename"
           },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "kind": {
             "$ref": "#/components/schemas/ImageKind"
           },
@@ -2064,6 +2277,7 @@
           "job_id",
           "case_id",
           "original_filename",
+          "display_name",
           "kind",
           "media_type",
           "detected_media_type",
@@ -2617,6 +2831,25 @@
         ],
         "title": "PresignedPostResponse"
       },
+      "RenameImageRequest": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Display Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "title": "RenameImageRequest",
+        "example": {
+          "display_name": "Membro anterior direito - lateral.png"
+        }
+      },
       "RequestValidationDetails": {
         "properties": {
           "errors": {
@@ -2806,6 +3039,12 @@
           "type"
         ],
         "title": "ValidationFieldError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }
