@@ -203,6 +203,7 @@ class ImageResponse(BaseModel):
     )
     case_id: UUID
     original_filename: str
+    display_name: str | None
     kind: ImageKind
     media_type: str
     detected_media_type: str | None
@@ -244,6 +245,7 @@ class ImageResponse(BaseModel):
             job_id=job_id,
             case_id=image.case_id,
             original_filename=image.original_filename,
+            display_name=image.display_name,
             kind=image.kind,
             media_type=image.media_type,
             detected_media_type=image.detected_media_type,
@@ -272,6 +274,13 @@ class ImageResponse(BaseModel):
 
 class ImageListResponse(BaseModel):
     items: list[ImageResponse]
+
+
+class RenameImageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"example": {
+        "display_name": "Membro anterior direito - lateral.png"
+    }})
+    display_name: str = Field(min_length=1, max_length=255)
 
 
 class ImagePreviewResponse(BaseModel):

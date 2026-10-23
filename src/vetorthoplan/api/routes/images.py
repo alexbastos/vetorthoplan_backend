@@ -8,6 +8,7 @@ from vetorthoplan.api.dependencies import (
     GetImagePreviewDependency,
     GetIngestionJobDependency,
     ListCaseImagesDependency,
+    RenameImageDependency,
     RetryIngestionJobDependency,
     TenantContextDependency,
     get_tenant_context,
@@ -19,6 +20,7 @@ from vetorthoplan.api.schemas import (
     ImagePreviewResponse,
     ImageResponse,
     IngestionJobResponse,
+    RenameImageRequest,
 )
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(get_tenant_context)])
@@ -139,6 +141,29 @@ async def get_image(
     job_reader: GetIngestionJobDependency,
 ) -> ImageResponse:
     image = await use_case.execute(image_id, context)
+    job = await job_reader.execute_for_image(image_id, context)
+    return ImageResponse.from_domain(image, job_id=job.id if job else None)
+
+
+@router.patch(
+    "/images/{image_id}",
+    response_model=ImageResponse,
+    tags=["Images"],
+    summary="Alterar nome de exibição da imagem",
+    description=(
+        "Altera somente o nome apresentado na interface. O nome original, arquivo, prévia, "
+        "checksum e processamento permanecem inalterados. A extensão original é preservada."
+    ),
+    responses={404: {"model": ErrorResponse, "description": "Imagem não encontrada"}},
+)
+async def rename_image(
+    image_id: UUID,
+    request: RenameImageRequest,
+    context: TenantContextDependency,
+    use_case: RenameImageDependency,
+    job_reader: GetIngestionJobDependency,
+) -> ImageResponse:
+    image = await use_case.execute(image_id, request.display_name, context)
     job = await job_reader.execute_for_image(image_id, context)
     return ImageResponse.from_domain(image, job_id=job.id if job else None)
 

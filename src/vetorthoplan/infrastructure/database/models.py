@@ -58,6 +58,12 @@ class AuthOrganizationMappingModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class PendingStorageCleanupModel(Base):
+    __tablename__ = "pending_storage_cleanups"
+    object_key: Mapped[str] = mapped_column(String(1024), primary_key=True)
+    cleanup_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class CaseModel(Base):
     __tablename__ = "clinical_cases"
     __table_args__ = (
@@ -167,6 +173,7 @@ class ImageUploadModel(Base):
         nullable=False,
     )
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
     media_type: Mapped[str] = mapped_column(String(64), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)

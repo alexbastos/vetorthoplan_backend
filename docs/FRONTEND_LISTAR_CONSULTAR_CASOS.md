@@ -12,6 +12,8 @@ Este slice permite ao frontend recuperar os casos do tenant ativo, aplicar busca
 
 O detalhe do caso pode oferecer criação e confirmação do upload, documentadas nos guias de [criação da sessão](FRONTEND_CRIAR_SESSAO_UPLOAD.md) e [confirmação](FRONTEND_CONFIRMAR_UPLOAD.md). O processamento e a consulta de metadados também estão disponíveis; visualização de pixels e viewer permanecem pendentes.
 
+O caso pode ser excluído permanentemente por `DELETE /api/v1/cases/{case_id}`. A API retorna 204 após remover os registros e objetos associados. Uploads ainda válidos ou jobs `QUEUED`/`PROCESSING` causam 409 `CASE_DELETE_NOT_ALLOWED`; leia `details.reason` (`ACTIVE_UPLOAD` ou `ACTIVE_INGESTION`) para orientar a pessoa usuária. Se a exclusão falhar por indisponibilidade do storage, mantenha o caso na interface e permita repetir a operação.
+
 ## 2. Fluxo frontend
 
 ```text

@@ -12,6 +12,7 @@ from vetorthoplan.application.use_cases import (
     CompleteImageUpload,
     CreateCase,
     CreateImageUpload,
+    DeleteCase,
     DeleteImage,
     GetCase,
     GetImage,
@@ -20,6 +21,7 @@ from vetorthoplan.application.use_cases import (
     GetIngestionJob,
     ListCaseImages,
     ListCases,
+    RenameImage,
     RetryIngestionJob,
     SaveImagePlan,
 )
@@ -156,6 +158,24 @@ def get_case(
     return GetCase(repository=SqlAlchemyCaseRepository(session))
 
 
+def get_delete_case(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> DeleteCase:
+    return DeleteCase(
+        cases=SqlAlchemyCaseRepository(session),
+        images=SqlAlchemyImageUploadRepository(session),
+        jobs=SqlAlchemyIngestionJobQueue(session),
+        storage=S3PresignedPostStorage(
+            bucket=settings.storage_bucket,
+            region=settings.storage_region,
+            endpoint_url=settings.storage_endpoint_url,
+            expires_in_seconds=settings.upload_url_expires_seconds,
+        ),
+        clock=SystemClock(),
+    )
+
+
 def get_create_image_upload(
     session: Annotated[AsyncSession, Depends(get_database_session)],
     settings: Annotated[Settings, Depends(get_settings)],
@@ -247,6 +267,12 @@ def get_image(
     return GetImage(SqlAlchemyImageUploadRepository(session))
 
 
+def get_rename_image(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> RenameImage:
+    return RenameImage(SqlAlchemyImageUploadRepository(session))
+
+
 def get_delete_image(
     session: Annotated[AsyncSession, Depends(get_database_session)],
     settings: Annotated[Settings, Depends(get_settings)],
@@ -306,6 +332,7 @@ TenantContextDependency = Annotated[TenantContext, Depends(get_tenant_context)]
 CreateCaseDependency = Annotated[CreateCase, Depends(get_create_case)]
 ListCasesDependency = Annotated[ListCases, Depends(get_list_cases)]
 GetCaseDependency = Annotated[GetCase, Depends(get_case)]
+DeleteCaseDependency = Annotated[DeleteCase, Depends(get_delete_case)]
 CreateImageUploadDependency = Annotated[CreateImageUpload, Depends(get_create_image_upload)]
 CompleteImageUploadDependency = Annotated[
     CompleteImageUpload,
@@ -317,6 +344,7 @@ RetryIngestionJobDependency = Annotated[RetryIngestionJob, Depends(get_retry_ing
 ListCaseImagesDependency = Annotated[ListCaseImages, Depends(get_list_case_images)]
 GetImageDependency = Annotated[GetImage, Depends(get_image)]
 DeleteImageDependency = Annotated[DeleteImage, Depends(get_delete_image)]
+RenameImageDependency = Annotated[RenameImage, Depends(get_rename_image)]
 GetImagePreviewDependency = Annotated[GetImagePreview, Depends(get_image_preview)]
 GetImagePlanDependency = Annotated[GetImagePlan, Depends(get_image_plan)]
 SaveImagePlanDependency = Annotated[SaveImagePlan, Depends(get_save_image_plan)]

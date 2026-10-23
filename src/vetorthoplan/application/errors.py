@@ -13,6 +13,13 @@ class CaseNotFoundError(LookupError):
         self.case_id = case_id
 
 
+class CaseDeletionConflictError(ValueError):
+    def __init__(self, case_id: UUID, reason: str) -> None:
+        super().__init__("Não é possível excluir o caso enquanto houver upload ou processamento ativo.")
+        self.case_id = case_id
+        self.reason = reason
+
+
 class ImageUploadLimitExceededError(ValueError):
     def __init__(self, case_id: UUID, limit: int) -> None:
         super().__init__(f"O caso atingiu o limite de {limit} uploads de imagem.")

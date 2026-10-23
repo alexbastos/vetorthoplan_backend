@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from vetorthoplan.application.errors import ImageUploadIdempotencyConflictError
 from vetorthoplan.domain.imaging import ImageKind, ImageUpload, ImageUploadStatus
-from vetorthoplan.infrastructure.database.models import ImageUploadModel
+from vetorthoplan.infrastructure.database.models import CaseModel, ImageUploadModel
 
 
 class SqlAlchemyImageUploadRepository:
@@ -28,6 +28,7 @@ class SqlAlchemyImageUploadRepository:
             tenant_id=upload.tenant_id,
             case_id=upload.case_id,
             original_filename=upload.original_filename,
+            display_name=upload.display_name,
             kind=upload.kind.value,
             media_type=upload.media_type,
             size_bytes=upload.size_bytes,
@@ -115,14 +116,46 @@ class SqlAlchemyImageUploadRepository:
         model = await self._session.scalar(statement)
         return self._to_domain(model) if model else None
 
-    async def list_for_case(self, tenant_id: UUID, case_id: UUID) -> list[ImageUpload]:
+    async def lock_case_for_upload(self, tenant_id: UUID, upload_id: UUID) -> bool:
+        case_id = await self._session.scalar(
+            select(ImageUploadModel.case_id).where(
+                ImageUploadModel.tenant_id == tenant_id,
+                ImageUploadModel.id == upload_id,
+            )
+        )
+        if case_id is None:
+            return False
+        model = await self._session.scalar(
+            select(CaseModel).where(
+                CaseModel.tenant_id == tenant_id,
+                CaseModel.id == case_id,
+            ).with_for_update()
+        )
+        return model is not None
+
+    async def lock_case_for_image(self, tenant_id: UUID, image_id: UUID) -> bool:
+        upload_id = await self._session.scalar(
+            select(ImageUploadModel.id).where(
+                ImageUploadModel.tenant_id == tenant_id,
+                ImageUploadModel.image_id == image_id,
+            )
+        )
+        if upload_id is None:
+            return False
+        return await self.lock_case_for_upload(tenant_id, upload_id)
+
+    async def list_for_case(
+        self, tenant_id: UUID, case_id: UUID, *, include_cancelled: bool = False
+    ) -> list[ImageUpload]:
+        filters = [
+            ImageUploadModel.tenant_id == tenant_id,
+            ImageUploadModel.case_id == case_id,
+        ]
+        if not include_cancelled:
+            filters.append(ImageUploadModel.status != ImageUploadStatus.CANCELLED.value)
         statement = (
             select(ImageUploadModel)
-            .where(
-                ImageUploadModel.tenant_id == tenant_id,
-                ImageUploadModel.case_id == case_id,
-                ImageUploadModel.status != ImageUploadStatus.CANCELLED.value,
-            )
+            .where(*filters)
             .order_by(ImageUploadModel.created_at.desc(), ImageUploadModel.id.desc())
         )
         models = (await self._session.scalars(statement)).all()
@@ -137,6 +170,7 @@ class SqlAlchemyImageUploadRepository:
             )
             .values(
                 status=upload.status.value,
+                display_name=upload.display_name,
                 completed_at=upload.completed_at,
                 detected_media_type=upload.detected_media_type,
                 width_px=upload.width_px,
@@ -200,6 +234,7 @@ class SqlAlchemyImageUploadRepository:
             tenant_id=model.tenant_id,
             case_id=model.case_id,
             original_filename=model.original_filename,
+            display_name=model.display_name,
             kind=ImageKind(model.kind),
             media_type=model.media_type,
             size_bytes=model.size_bytes,

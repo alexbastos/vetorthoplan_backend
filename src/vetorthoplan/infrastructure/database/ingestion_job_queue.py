@@ -83,6 +83,15 @@ class SqlAlchemyIngestionJobQueue:
         )
         return self._to_domain(model) if model else None
 
+    async def list_for_case(self, tenant_id: UUID, case_id: UUID) -> list[IngestionJob]:
+        models = (await self._session.scalars(
+            select(IngestionJobModel).where(
+                IngestionJobModel.tenant_id == tenant_id,
+                IngestionJobModel.case_id == case_id,
+            ).with_for_update()
+        )).all()
+        return [self._to_domain(model) for model in models]
+
     async def claim_next(self, now: datetime) -> IngestionJob | None:
         statement = (
             select(IngestionJobModel)

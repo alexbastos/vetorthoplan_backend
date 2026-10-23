@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 from pathlib import PurePath
 from uuid import UUID
 
-from vetorthoplan.domain.imaging.errors import ImagingValidationError
+from vetorthoplan.domain.imaging.errors import (
+    ImageDisplayNameValidationError,
+    ImagingValidationError,
+)
 
 MAX_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024
 SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
@@ -60,6 +64,7 @@ class ImageUpload:
     created_at: datetime
     expires_at: datetime
     completed_at: datetime | None
+    display_name: str | None = None
     detected_media_type: str | None = None
     width_px: int | None = None
     height_px: int | None = None
@@ -72,6 +77,30 @@ class ImageUpload:
     preview_height_px: int | None = None
     idempotency_key_hash: str | None = None
     request_hash: str | None = None
+
+    def rename(self, display_name: str) -> ImageUpload:
+        name = display_name.strip()
+        suffix = PurePath(self.original_filename).suffix
+        if (
+            not name
+            or len(name) > 255
+            or "/" in name
+            or "\\" in name
+            or any(unicodedata.category(char) == "Cc" for char in name)
+        ):
+            raise ImageDisplayNameValidationError("display_name inválido.", field="display_name")
+        if suffix and not name.lower().endswith(suffix.lower()):
+            raise ImageDisplayNameValidationError(
+                "display_name deve preservar a extensão do arquivo original.",
+                field="display_name",
+            )
+        stem = name[: -len(suffix)] if suffix else name
+        if not stem.strip():
+            raise ImageDisplayNameValidationError(
+                "display_name deve conter uma parte nominal não vazia.",
+                field="display_name",
+            )
+        return replace(self, display_name=name)
 
     @classmethod
     def create(

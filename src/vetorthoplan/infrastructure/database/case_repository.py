@@ -1,13 +1,17 @@
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vetorthoplan.application.errors import IdempotencyKeyConflictError
 from vetorthoplan.application.ports import CaseCursor, CasePage
 from vetorthoplan.domain.cases import AgeSource, BiologicalSex, Case, CaseStatus
-from vetorthoplan.infrastructure.database.models import CaseIdempotencyModel, CaseModel
+from vetorthoplan.infrastructure.database.models import (
+    CaseIdempotencyModel,
+    CaseModel,
+    PendingStorageCleanupModel,
+)
 
 
 class SqlAlchemyCaseRepository:
@@ -89,6 +93,55 @@ class SqlAlchemyCaseRepository:
         model = await self._session.scalar(statement)
         return self._to_domain(model) if model else None
 
+    async def lock_by_id(self, tenant_id: UUID, case_id: UUID) -> Case | None:
+        model = await self._session.scalar(
+            select(CaseModel)
+            .where(
+                CaseModel.tenant_id == tenant_id,
+                CaseModel.id == case_id,
+            )
+            .with_for_update()
+        )
+        return self._to_domain(model) if model else None
+
+    async def delete(self, tenant_id: UUID, case_id: UUID) -> None:
+        await self._session.execute(
+            delete(CaseIdempotencyModel).where(
+                CaseIdempotencyModel.tenant_id == tenant_id,
+                CaseIdempotencyModel.resource_id == case_id,
+            )
+        )
+        await self._session.execute(
+            delete(CaseModel).where(
+                CaseModel.tenant_id == tenant_id,
+                CaseModel.id == case_id,
+            )
+        )
+        await self._session.flush()
+
+    async def schedule_storage_cleanup(self, object_keys: list[str], cleanup_after) -> None:
+        for object_key in object_keys:
+            await self._session.merge(
+                PendingStorageCleanupModel(object_key=object_key, cleanup_after=cleanup_after)
+            )
+        await self._session.flush()
+
+    async def list_due_storage_cleanup(self, now, *, limit: int = 500) -> list[str]:
+        rows = await self._session.scalars(
+            select(PendingStorageCleanupModel)
+            .where(PendingStorageCleanupModel.cleanup_after <= now)
+            .order_by(PendingStorageCleanupModel.cleanup_after)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+        return [row.object_key for row in rows.all()]
+
+    async def finish_storage_cleanup(self, object_key: str) -> None:
+        await self._session.execute(
+            delete(PendingStorageCleanupModel).where(PendingStorageCleanupModel.object_key == object_key)
+        )
+        await self._session.flush()
+
     async def list_by_tenant(
         self,
         tenant_id: UUID,
@@ -119,14 +172,10 @@ class SqlAlchemyCaseRepository:
         if search_filter is not None:
             count_filters.append(search_filter)
         count_rows = await self._session.execute(
-            select(CaseModel.status, func.count())
-            .where(*count_filters)
-            .group_by(CaseModel.status)
+            select(CaseModel.status, func.count()).where(*count_filters).group_by(CaseModel.status)
         )
         status_counts = {case_status: 0 for case_status in CaseStatus}
-        status_counts.update(
-            {CaseStatus(raw_status): count for raw_status, count in count_rows.all()}
-        )
+        status_counts.update({CaseStatus(raw_status): count for raw_status, count in count_rows.all()})
 
         statement = select(CaseModel).where(*filters)
         if cursor is not None:
@@ -140,9 +189,7 @@ class SqlAlchemyCaseRepository:
                 )
             )
 
-        statement = statement.order_by(CaseModel.created_at.desc(), CaseModel.id.desc()).limit(
-            limit + 1
-        )
+        statement = statement.order_by(CaseModel.created_at.desc(), CaseModel.id.desc()).limit(limit + 1)
         models = list((await self._session.scalars(statement)).all())
         has_next_page = len(models) > limit
         page_models = models[:limit]

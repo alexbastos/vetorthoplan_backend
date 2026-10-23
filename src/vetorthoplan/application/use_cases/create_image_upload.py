@@ -69,7 +69,8 @@ class CreateImageUpload:
         *,
         idempotency_key: str,
     ) -> CreatedImageUpload:
-        case = await self._case_repository.get_by_id(context.tenant_id, case_id)
+        lock_case = getattr(self._case_repository, "lock_by_id", self._case_repository.get_by_id)
+        case = await lock_case(context.tenant_id, case_id)
         if case is None:
             raise CaseNotFoundError(case_id)
 
