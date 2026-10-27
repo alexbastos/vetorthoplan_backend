@@ -5,6 +5,9 @@ from uuid import UUID
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from vetorthoplan.domain.planning.clinical_protocol import parse_clinical_protocol
+from vetorthoplan.domain.planning.rotation_table import parse_rotation_table
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -36,12 +39,28 @@ class Settings(BaseSettings):
     storage_clock_skew_seconds: float = Field(default=5.0, ge=0, le=60)
     max_uploads_per_case: int = Field(default=20, ge=1, le=100)
     worker_poll_seconds: float = Field(default=1.0, ge=0.1, le=60)
+    tplo_rotation_table_version: str | None = Field(default=None, min_length=1, max_length=100)
+    tplo_rotation_table_source: str | None = Field(default=None, min_length=1, max_length=300)
+    tplo_rotation_table_json: str | None = None
+    tplo_clinical_protocol_json: str | None = None
 
     @model_validator(mode="after")
     def reject_local_identity_outside_safe_environments(self) -> "Settings":
+        try:
+            parse_clinical_protocol(self.tplo_clinical_protocol_json)
+        except (ValueError, TypeError) as exc:
+            raise ValueError("TPLO_CLINICAL_PROTOCOL_JSON contém um protocolo inválido") from exc
+        try:
+            parse_rotation_table(
+                self.tplo_rotation_table_version,
+                self.tplo_rotation_table_source,
+                self.tplo_rotation_table_json,
+            )
+        except (ValueError, TypeError) as exc:
+            raise ValueError("Configuração da tabela TPLO inválida") from exc
         if self.identity_mode == "local" and self.app_env not in {"local", "development", "test"}:
             raise ValueError(
-                "IDENTITY_MODE=local só é permitido nos ambientes local, development ou test."
+                "IDENTITY_MODE=local não é permitido fora dos ambientes local, development ou test."
             )
         if self.identity_mode == "jwt":
             if not self.jwt_issuer or not self.jwt_issuer.strip() or not self.jwks_url:

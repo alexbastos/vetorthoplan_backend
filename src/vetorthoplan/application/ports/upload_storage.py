@@ -47,6 +47,17 @@ class UploadStorage(Protocol):
 
     async def read_uploaded_object(self, upload: ImageUpload) -> bytes: ...
 
+    async def read_object(self, object_key: str) -> bytes: ...
+
+    async def store_object(
+        self,
+        object_key: str,
+        content: bytes,
+        media_type: str,
+        *,
+        metadata: dict[str, str] | None = None,
+    ) -> None: ...
+
     async def store_preview(
         self,
         upload: ImageUpload,
@@ -54,6 +65,12 @@ class UploadStorage(Protocol):
         media_type: str,
     ) -> StoredPreviewObject: ...
 
-    def create_presigned_get(self, object_key: str, now: datetime) -> PresignedReadTarget: ...
+    def create_presigned_get(
+        self,
+        object_key: str,
+        now: datetime,
+        *,
+        expires_in_seconds: int | None = None,
+    ) -> PresignedReadTarget: ...
 
     async def delete_object(self, object_key: str) -> None: ...

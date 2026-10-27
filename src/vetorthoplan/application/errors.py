@@ -120,6 +120,19 @@ class ClinicalValidationError(ValueError):
         super().__init__(reason)
 
 
+class ImagePlanFinalizedError(ValueError):
+    def __init__(self, image_id: UUID, version: int) -> None:
+        super().__init__("O plano já foi finalizado e não pode mais ser alterado.")
+        self.image_id = image_id
+        self.version = version
+
+
+class ImagePlanFinalizationNotFoundError(LookupError):
+    def __init__(self, image_id: UUID) -> None:
+        super().__init__("Finalização do plano não encontrada.")
+        self.image_id = image_id
+
+
 class IngestionJobNotFoundError(LookupError):
     def __init__(self, job_id: UUID) -> None:
         super().__init__("Job de ingestão não encontrado.")

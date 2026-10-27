@@ -7,6 +7,7 @@ from vetorthoplan.application.errors import (
 )
 from vetorthoplan.application.ports import (
     Clock,
+    FinalizedPlanRepository,
     ImagePlanRepository,
     ImageUploadRepository,
     IngestionJobQueue,
@@ -25,12 +26,14 @@ class DeleteImage:
         jobs: IngestionJobQueue,
         storage: UploadStorage,
         clock: Clock,
+        finalized_plans: FinalizedPlanRepository | None = None,
     ) -> None:
         self._images = images
         self._plans = plans
         self._jobs = jobs
         self._storage = storage
         self._clock = clock
+        self._finalized_plans = finalized_plans
 
     async def execute(self, image_id: UUID, context: TenantContext) -> None:
         lock_case = getattr(self._images, "lock_case_for_image", None)
@@ -50,6 +53,10 @@ class DeleteImage:
             and image.expires_at > self._clock.now()
         ):
             raise ImageDeletionConflictError(image_id)
+        if self._finalized_plans is not None:
+            for finalized in await self._finalized_plans.list_for_image(context.tenant_id, image_id):
+                await self._storage.delete_object(finalized.report_png_key)
+                await self._storage.delete_object(finalized.report_pdf_key)
         if image.preview_object_key:
             await self._storage.delete_object(image.preview_object_key)
         await self._storage.delete_object(image.object_key)

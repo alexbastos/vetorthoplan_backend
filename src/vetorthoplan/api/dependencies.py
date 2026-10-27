@@ -7,6 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vetorthoplan.application.context import TenantContext
+from vetorthoplan.application.ports.tplo_rotation_table_repository import TploRotationTableRepository
 from vetorthoplan.application.use_cases import (
     CancelImageUpload,
     CompleteImageUpload,
@@ -14,7 +15,9 @@ from vetorthoplan.application.use_cases import (
     CreateImageUpload,
     DeleteCase,
     DeleteImage,
+    FinalizeImagePlan,
     GetCase,
+    GetFinalizedImagePlan,
     GetImage,
     GetImagePlan,
     GetImagePreview,
@@ -26,6 +29,7 @@ from vetorthoplan.application.use_cases import (
     SaveImagePlan,
 )
 from vetorthoplan.config.settings import Settings, get_settings
+from vetorthoplan.domain.planning.clinical_protocol import parse_clinical_protocol
 from vetorthoplan.infrastructure.authentication.identity_mapping import (
     resolve_actor_id,
     resolve_tenant_id,
@@ -37,6 +41,9 @@ from vetorthoplan.infrastructure.authentication.jwks import (
 )
 from vetorthoplan.infrastructure.clock import SystemClock
 from vetorthoplan.infrastructure.database.case_repository import SqlAlchemyCaseRepository
+from vetorthoplan.infrastructure.database.finalized_plan_repository import (
+    SqlAlchemyFinalizedPlanRepository,
+)
 from vetorthoplan.infrastructure.database.image_plan_repository import SqlAlchemyImagePlanRepository
 from vetorthoplan.infrastructure.database.image_upload_repository import (
     SqlAlchemyImageUploadRepository,
@@ -45,7 +52,11 @@ from vetorthoplan.infrastructure.database.ingestion_job_queue import (
     SqlAlchemyIngestionJobQueue,
 )
 from vetorthoplan.infrastructure.database.session import get_database_session
+from vetorthoplan.infrastructure.database.tplo_rotation_table_repository import (
+    SqlAlchemyTploRotationTableRepository,
+)
 from vetorthoplan.infrastructure.id_generator import UuidGenerator
+from vetorthoplan.infrastructure.plan_report_renderer import TploPlanReportRenderer
 from vetorthoplan.infrastructure.storage import S3PresignedPostStorage
 
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -166,6 +177,7 @@ def get_delete_case(
         cases=SqlAlchemyCaseRepository(session),
         images=SqlAlchemyImageUploadRepository(session),
         jobs=SqlAlchemyIngestionJobQueue(session),
+        finalized_plans=SqlAlchemyFinalizedPlanRepository(session),
         storage=S3PresignedPostStorage(
             bucket=settings.storage_bucket,
             region=settings.storage_region,
@@ -281,6 +293,7 @@ def get_delete_image(
         images=SqlAlchemyImageUploadRepository(session),
         plans=SqlAlchemyImagePlanRepository(session),
         jobs=SqlAlchemyIngestionJobQueue(session),
+        finalized_plans=SqlAlchemyFinalizedPlanRepository(session),
         storage=S3PresignedPostStorage(
             bucket=settings.storage_bucket,
             region=settings.storage_region,
@@ -319,13 +332,63 @@ def get_image_plan(
 
 def get_save_image_plan(
     session: Annotated[AsyncSession, Depends(get_database_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> SaveImagePlan:
     return SaveImagePlan(
         plans=SqlAlchemyImagePlanRepository(session),
         images=SqlAlchemyImageUploadRepository(session),
         id_generator=UuidGenerator(),
         clock=SystemClock(),
+        clinical_protocol=parse_clinical_protocol(settings.tplo_clinical_protocol_json),
+        finalized_plans=SqlAlchemyFinalizedPlanRepository(session),
     )
+
+
+def get_finalize_image_plan(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> FinalizeImagePlan:
+    return FinalizeImagePlan(
+        plans=SqlAlchemyImagePlanRepository(session),
+        finalized_plans=SqlAlchemyFinalizedPlanRepository(session),
+        images=SqlAlchemyImageUploadRepository(session),
+        storage=S3PresignedPostStorage(
+            bucket=settings.storage_bucket,
+            region=settings.storage_region,
+            endpoint_url=settings.storage_endpoint_url,
+            presign_endpoint_url=settings.storage_public_endpoint_url,
+            expires_in_seconds=settings.upload_url_expires_seconds,
+        ),
+        id_generator=UuidGenerator(),
+        clock=SystemClock(),
+        renderer=TploPlanReportRenderer(),
+        report_url_expires_seconds=settings.preview_url_expires_seconds,
+    )
+
+
+def get_finalized_image_plan(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> GetFinalizedImagePlan:
+    return GetFinalizedImagePlan(
+        finalized_plans=SqlAlchemyFinalizedPlanRepository(session),
+        images=SqlAlchemyImageUploadRepository(session),
+        storage=S3PresignedPostStorage(
+            bucket=settings.storage_bucket,
+            region=settings.storage_region,
+            endpoint_url=settings.storage_endpoint_url,
+            presign_endpoint_url=settings.storage_public_endpoint_url,
+            expires_in_seconds=settings.preview_url_expires_seconds,
+        ),
+        clock=SystemClock(),
+        report_url_expires_seconds=settings.preview_url_expires_seconds,
+    )
+
+
+def get_tplo_rotation_table_repository(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> TploRotationTableRepository:
+    return SqlAlchemyTploRotationTableRepository(session)
 
 
 TenantContextDependency = Annotated[TenantContext, Depends(get_tenant_context)]
@@ -348,3 +411,8 @@ RenameImageDependency = Annotated[RenameImage, Depends(get_rename_image)]
 GetImagePreviewDependency = Annotated[GetImagePreview, Depends(get_image_preview)]
 GetImagePlanDependency = Annotated[GetImagePlan, Depends(get_image_plan)]
 SaveImagePlanDependency = Annotated[SaveImagePlan, Depends(get_save_image_plan)]
+FinalizeImagePlanDependency = Annotated[FinalizeImagePlan, Depends(get_finalize_image_plan)]
+GetFinalizedImagePlanDependency = Annotated[
+    GetFinalizedImagePlan,
+    Depends(get_finalized_image_plan),
+]

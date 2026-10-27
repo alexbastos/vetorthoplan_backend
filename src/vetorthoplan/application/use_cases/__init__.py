@@ -11,6 +11,11 @@ from vetorthoplan.application.use_cases.create_image_upload import (
 )
 from vetorthoplan.application.use_cases.delete_case import DeleteCase
 from vetorthoplan.application.use_cases.delete_image import DeleteImage
+from vetorthoplan.application.use_cases.finalize_image_plan import (
+    FinalizedPlanView,
+    FinalizeImagePlan,
+    GetFinalizedImagePlan,
+)
 from vetorthoplan.application.use_cases.get_case import GetCase
 from vetorthoplan.application.use_cases.get_image_preview import GetImagePreview, ImagePreview
 from vetorthoplan.application.use_cases.get_ingestion_job import GetIngestionJob
@@ -40,6 +45,9 @@ __all__ = [
     "DeleteImage",
     "DeleteCase",
     "GetCase",
+    "FinalizeImagePlan",
+    "FinalizedPlanView",
+    "GetFinalizedImagePlan",
     "GetImage",
     "GetIngestionJob",
     "GetImagePreview",

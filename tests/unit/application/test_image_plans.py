@@ -4,8 +4,13 @@ from uuid import UUID
 import pytest
 
 from vetorthoplan.application.context import TenantContext
-from vetorthoplan.application.errors import ImageNotReadyError, PlanRevisionConflictError
+from vetorthoplan.application.errors import (
+    ClinicalValidationError,
+    ImageNotReadyError,
+    PlanRevisionConflictError,
+)
 from vetorthoplan.application.use_cases import GetImagePlan, SaveImagePlan
+from vetorthoplan.application.use_cases.image_plans import _validate_clinical_review
 from vetorthoplan.domain.imaging import ImageUpload
 from vetorthoplan.domain.planning import ImagePlan
 
@@ -16,7 +21,18 @@ CASE_ID = UUID("00000000-0000-4000-8000-000000000703")
 IMAGE_ID = UUID("00000000-0000-4000-8000-000000000704")
 UPLOAD_ID = UUID("00000000-0000-4000-8000-000000000705")
 PLAN_ID = UUID("00000000-0000-4000-8000-000000000706")
-DOCUMENT = {"schema_version": 1, "calibration": None, "tplo": None, "objects": []}
+DOCUMENT = {
+    "schema_version": 1,
+    "calibration": None,
+    "tplo": None,
+    "tplo_landmarks": None,
+    "tplo_measurement": None,
+    "radiographic_quality": None,
+    "additional_measurements_input": {"landmarks": {}, "reference_values": {}},
+    "additional_measurements": [],
+    "clinical_validation": None,
+    "objects": [],
+}
 
 
 def ready_image() -> ImageUpload:
@@ -169,3 +185,30 @@ async def test_concurrent_first_save_returns_revision_conflict() -> None:
         await use_case.execute(IMAGE_ID, 0, DOCUMENT, TenantContext(TENANT_ID, ACTOR_ID))
 
     assert error.value.current_revision == 1
+
+
+def test_clinical_approval_requires_ready_for_review_transition() -> None:
+    document = {"clinical_validation": {"status": "APPROVED"}}
+
+    with pytest.raises(ClinicalValidationError, match="READY_FOR_REVIEW"):
+        _validate_clinical_review(document, previous_document=None)
+
+
+def test_clinical_approval_cannot_accept_unconfigured_tpa() -> None:
+    document = {
+        "tplo": {"eligibility": "ELIGIBLE"},
+        "calibration": {"result": {}},
+        "radiographic_quality": {
+            "true_lateral": "PASS",
+            "femoral_condyles_superimposed": "PASS",
+            "stifle_and_tarsus_included": "PASS",
+            "tibial_axis_centered": "PASS",
+            "tibial_plateau_visible": "PASS",
+        },
+        "clinical_validation": {"status": "APPROVED", "required_measurements": ["TPA"]},
+        "tplo_measurement": {"tpa_degrees": 24.0, "acceptance": "NOT_CONFIGURED"},
+    }
+    previous_document = {"clinical_validation": {"status": "READY_FOR_REVIEW"}}
+
+    with pytest.raises(ClinicalValidationError, match="TPA"):
+        _validate_clinical_review(document, previous_document=previous_document)

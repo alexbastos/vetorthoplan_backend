@@ -37,8 +37,10 @@ class CreateCaseRequest(BaseModel):
         default=None,
         ge=0,
         le=600,
-        description=("Idade em meses completos na data de criação do caso. Pode acompanhar birth_date "
-                     "quando igual à idade calculada nessa data."),
+        description=(
+            "Idade em meses completos na data de criação do caso. Pode acompanhar birth_date "
+            "quando igual à idade calculada nessa data."
+        ),
     )
     weight_kg: Decimal | None = Field(
         default=None,
@@ -61,9 +63,7 @@ class CaseResponse(BaseModel):
     sex: BiologicalSex | None
     birth_date: date | None
     approximate_age_months: int | None
-    age_source: AgeSource | None = Field(
-        description="DECLARED ou BIRTH_DATE; nulo se idade desconhecida"
-    )
+    age_source: AgeSource | None = Field(description="DECLARED ou BIRTH_DATE; nulo se idade desconhecida")
     age_reference_date: date | None = Field(
         description="Data usada como referência para approximate_age_months"
     )
@@ -79,9 +79,7 @@ class CaseResponse(BaseModel):
         values = {field: getattr(case, field) for field in cls.model_fields}
         if case.approximate_age_months is None and case.birth_date is not None:
             reference_date = case.age_reference_date or case.created_at.date()
-            values["approximate_age_months"] = Case._months_completed(
-                case.birth_date, reference_date
-            )
+            values["approximate_age_months"] = Case._months_completed(case.birth_date, reference_date)
         return cls(**values)
 
 
@@ -263,9 +261,7 @@ class ImageResponse(BaseModel):
             preview_width_px=image.preview_width_px,
             preview_height_px=image.preview_height_px,
             pixel_spacing_mm=_parse_dicom_decimal_values(image.metadata, "pixel_spacing"),
-            imager_pixel_spacing_mm=_parse_dicom_decimal_values(
-                image.metadata, "imager_pixel_spacing"
-            ),
+            imager_pixel_spacing_mm=_parse_dicom_decimal_values(image.metadata, "imager_pixel_spacing"),
             image_orientation_patient=_parse_dicom_decimal_values(
                 image.metadata, "image_orientation_patient", expected_count=6
             ),
@@ -277,9 +273,10 @@ class ImageListResponse(BaseModel):
 
 
 class RenameImageRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", json_schema_extra={"example": {
-        "display_name": "Membro anterior direito - lateral.png"
-    }})
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"example": {"display_name": "Membro anterior direito - lateral.png"}},
+    )
     display_name: str = Field(min_length=1, max_length=255)
 
 
@@ -347,9 +344,7 @@ class PlanDerivedMeasurement(BaseModel):
 
 
 class PlanTploSimulation(BaseModel):
-    status: Literal[
-        "SIMULATED", "CALIBRATION_REQUIRED", "IMAGE_DIMENSIONS_REQUIRED", "FRAGMENT_REQUIRED"
-    ]
+    status: Literal["SIMULATED", "CALIBRATION_REQUIRED", "IMAGE_DIMENSIONS_REQUIRED", "FRAGMENT_REQUIRED"]
     calibration_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     center_px: dict[str, float] = Field(default_factory=dict)
     radius_mm: float | None = Field(default=None, gt=0)
@@ -505,6 +500,30 @@ class TploPlanMetadata(BaseModel):
         return self
 
 
+class TploRadiographicQuality(BaseModel):
+    """Image quality observations recorded by the clinician for a TPLO view."""
+
+    true_lateral: Literal["PASS", "FAIL", "NOT_ASSESSED"] = "NOT_ASSESSED"
+    femoral_condyles_superimposed: Literal["PASS", "FAIL", "NOT_ASSESSED"] = "NOT_ASSESSED"
+    stifle_and_tarsus_included: Literal["PASS", "FAIL", "NOT_ASSESSED"] = "NOT_ASSESSED"
+    tibial_axis_centered: Literal["PASS", "FAIL", "NOT_ASSESSED"] = "NOT_ASSESSED"
+    tibial_plateau_visible: Literal["PASS", "FAIL", "NOT_ASSESSED"] = "NOT_ASSESSED"
+    notes: str | None = Field(default=None, max_length=2_000)
+
+    @property
+    def acceptable_for_planning(self) -> bool:
+        return all(
+            getattr(self, name) == "PASS"
+            for name in (
+                "true_lateral",
+                "femoral_condyles_superimposed",
+                "stifle_and_tarsus_included",
+                "tibial_axis_centered",
+                "tibial_plateau_visible",
+            )
+        )
+
+
 class TploLandmarks(BaseModel):
     method: Literal[
         "MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1",
@@ -522,6 +541,13 @@ class TploLandmarks(BaseModel):
     talus_center: PlanPoint
 
 
+class TploAdditionalMeasurementInput(BaseModel):
+    """User placed named landmarks and an independent reference measurement."""
+
+    landmarks: dict[str, PlanPoint] = Field(default_factory=dict, max_length=40)
+    reference_values: dict[str, float] = Field(default_factory=dict, max_length=50)
+
+
 class TploClinicalMeasurement(BaseModel):
     method: Literal[
         "MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1",
@@ -532,6 +558,11 @@ class TploClinicalMeasurement(BaseModel):
     plateau_length_mm: float | None = Field(default=None, gt=0)
     tibial_axis_length_mm: float | None = Field(default=None, gt=0)
     calibration_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    reference_tpa_degrees: float | None = Field(default=None, ge=0, le=90)
+    tpa_absolute_error_degrees: float | None = Field(default=None, ge=0, le=90)
+    tpa_max_absolute_error_degrees: float | None = Field(default=None, gt=0, le=90)
+    acceptance: Literal["PASS", "FAIL", "NOT_ASSESSED", "NOT_CONFIGURED"] | None = None
+    clinical_protocol_version: str | None = None
     clinically_validated: Literal[False] = False
 
 
@@ -541,11 +572,10 @@ class TploClinicalValidation(BaseModel):
     image_quality_confirmed: bool = False
     calibration_confirmed: bool = False
     anatomical_references_confirmed: bool = False
-    required_measurements: list[Literal["TPA", "PLATEAU_AXIS", "TIBIAL_AXIS"]] = Field(
-        default_factory=list, max_length=10
-    )
+    required_measurements: list[str] = Field(default_factory=list, max_length=50)
     reviewer_notes: str | None = Field(default=None, max_length=2_000)
     rejection_reason: str | None = Field(default=None, max_length=2_000)
+    audit: list["TploClinicalReviewAudit"] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_state(self) -> "TploClinicalValidation":
@@ -563,11 +593,25 @@ class TploClinicalValidation(BaseModel):
         return self
 
 
+class TploClinicalReviewAudit(BaseModel):
+    decision: Literal["APPROVED", "REJECTED"]
+    actor_id: UUID
+    reviewed_at: datetime
+    protocol_version: str
+    measurement_method: str | None = None
+    calibration_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+
 class PlanDocument(BaseModel):
     schema_version: Literal[1] = 1
     calibration: PlanCalibration | None = None
     tplo: TploPlanMetadata | None = None
+    radiographic_quality: TploRadiographicQuality | None = None
     tplo_landmarks: TploLandmarks | None = None
+    additional_measurements_input: TploAdditionalMeasurementInput = Field(
+        default_factory=TploAdditionalMeasurementInput
+    )
+    additional_measurements: list[dict[str, object]] = Field(default_factory=list)
     tplo_measurement: TploClinicalMeasurement | None = None
     clinical_validation: TploClinicalValidation | None = None
     objects: list[PlanObject] = Field(default_factory=list, max_length=500)
@@ -585,6 +629,29 @@ class ImagePlanResponse(BaseModel):
     updated_at: datetime | None
 
 
+class FinalizeImagePlanRequest(BaseModel):
+    base_revision: int = Field(ge=1)
+
+
+class FinalizedReportFileResponse(BaseModel):
+    format: Literal["PNG", "PDF"]
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    download_url: str
+    expires_at: datetime
+
+
+class FinalizedImagePlanResponse(BaseModel):
+    image_id: UUID
+    version: int = Field(ge=1)
+    plan_revision: int = Field(ge=1)
+    snapshot: dict[str, object]
+    snapshot_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    report_template_version: str
+    finalized_by: UUID
+    finalized_at: datetime
+    reports: list[FinalizedReportFileResponse]
+
+
 class ErrorResponse(BaseModel):
     code: str
     message: str
@@ -597,6 +664,29 @@ class ErrorResponse(BaseModel):
         ),
     )
     trace_id: str | None = None
+
+
+class TploRotationTableResponse(BaseModel):
+    configured: bool
+    table_version: str | None
+    source: str | None
+    source_url: str | None = None
+    source_asset_url: str | None = None
+    target_slope_degrees: float | None = None
+    entries_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    query: dict[str, float] = Field(default_factory=dict)
+    match_count: int = Field(ge=0)
+    entries: list[dict[str, str | int | float]]
+    recommendation_enabled: Literal[False] = False
+
+
+class TploClinicalProtocolResponse(BaseModel):
+    configured: bool
+    protocol_version: str | None = None
+    source: str | None = None
+    measurements: list[dict[str, object]] = Field(default_factory=list)
+    acceptance_enabled: bool = False
+    clinically_validated: Literal[False] = False
 
 
 class ValidationFieldError(BaseModel):

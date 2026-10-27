@@ -8,6 +8,7 @@ from vetorthoplan.api.routes.health import router as health_router
 from vetorthoplan.api.routes.image_uploads import router as image_uploads_router
 from vetorthoplan.api.routes.images import router as images_router
 from vetorthoplan.api.routes.plans import router as plans_router
+from vetorthoplan.api.routes.tplo import router as tplo_router
 from vetorthoplan.api.schemas import ErrorResponse
 from vetorthoplan.application.errors import (
     CaseDeletionConflictError,
@@ -17,6 +18,8 @@ from vetorthoplan.application.errors import (
     ImageDeletionConflictError,
     ImageNotFoundError,
     ImageNotReadyError,
+    ImagePlanFinalizationNotFoundError,
+    ImagePlanFinalizedError,
     ImagePreviewUnavailableError,
     ImageUploadCancellationConflictError,
     ImageUploadCancelledError,
@@ -154,9 +157,7 @@ def create_app() -> FastAPI:
             code="IMAGE_UPLOAD_DUPLICATE",
             message=str(exc),
             details=(
-                {"existing_image_id": str(exc.existing_image_id)}
-                if exc.existing_image_id is not None
-                else {}
+                {"existing_image_id": str(exc.existing_image_id)} if exc.existing_image_id is not None else {}
             ),
         )
         return JSONResponse(status_code=409, content=error.model_dump())
@@ -328,6 +329,30 @@ def create_app() -> FastAPI:
         )
         return JSONResponse(status_code=409, content=error.model_dump())
 
+    @app.exception_handler(ImagePlanFinalizedError)
+    async def image_plan_finalized_error_handler(
+        _request: Request,
+        exc: ImagePlanFinalizedError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IMAGE_PLAN_FINALIZED",
+            message=str(exc),
+            details={"image_id": str(exc.image_id), "finalization_version": exc.version},
+        )
+        return JSONResponse(status_code=409, content=error.model_dump())
+
+    @app.exception_handler(ImagePlanFinalizationNotFoundError)
+    async def image_plan_finalization_not_found_handler(
+        _request: Request,
+        exc: ImagePlanFinalizationNotFoundError,
+    ) -> JSONResponse:
+        error = ErrorResponse(
+            code="IMAGE_PLAN_FINALIZATION_NOT_FOUND",
+            message=str(exc),
+            details={"image_id": str(exc.image_id)},
+        )
+        return JSONResponse(status_code=404, content=error.model_dump())
+
     @app.exception_handler(ClinicalValidationError)
     async def clinical_validation_error_handler(
         _request: Request,
@@ -360,6 +385,7 @@ def create_app() -> FastAPI:
     app.include_router(image_uploads_router)
     app.include_router(images_router)
     app.include_router(plans_router)
+    app.include_router(tplo_router)
     return app
 
 

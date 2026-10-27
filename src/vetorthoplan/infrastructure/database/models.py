@@ -18,6 +18,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -30,9 +31,7 @@ class AuthSubjectMappingModel(Base):
     """Maps an authentication service subject to the backend's internal actor UUID."""
 
     __tablename__ = "auth_subject_mappings"
-    __table_args__ = (
-        UniqueConstraint("issuer", "subject", name="uq_auth_subject_mappings_issuer_subject"),
-    )
+    __table_args__ = (UniqueConstraint("issuer", "subject", name="uq_auth_subject_mappings_issuer_subject"),)
 
     actor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
     issuer: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -258,3 +257,71 @@ class ImagePlanModel(Base):
     created_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class FinalizedPlanModel(Base):
+    __tablename__ = "finalized_image_plans"
+    __table_args__ = (
+        CheckConstraint("version >= 1", name="ck_finalized_image_plans_version_positive"),
+        CheckConstraint("plan_revision >= 1", name="ck_finalized_image_plans_revision_positive"),
+        UniqueConstraint("tenant_id", "image_id", "version", name="uq_finalized_plans_image_version"),
+        UniqueConstraint("tenant_id", "image_id", name="uq_finalized_plans_image"),
+        Index("ix_finalized_plans_tenant_case", "tenant_id", "case_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    tenant_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    case_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinical_cases.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    image_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("image_uploads.image_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    plan_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    snapshot: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    snapshot_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    report_template_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    report_png_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    report_png_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    report_pdf_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    report_pdf_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    finalized_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    finalized_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class TploRotationTableModel(Base):
+    __tablename__ = "tplo_rotation_tables"
+    __table_args__ = (
+        CheckConstraint("length(table_version) > 0", name="ck_tplo_rotation_table_version_nonempty"),
+        CheckConstraint("length(source) > 0", name="ck_tplo_rotation_table_source_nonempty"),
+        CheckConstraint("length(source_url) > 0", name="ck_tplo_rotation_table_source_url_nonempty"),
+        CheckConstraint("length(source_asset_url) > 0", name="ck_tplo_rotation_table_asset_url_nonempty"),
+        CheckConstraint("length(entries_sha256) = 64", name="ck_tplo_rotation_table_hash_length"),
+        CheckConstraint(
+            "target_slope_degrees > 0 AND target_slope_degrees < 90",
+            name="ck_tplo_rotation_table_slope_range",
+        ),
+        UniqueConstraint("table_version", name="uq_tplo_rotation_tables_version"),
+        Index(
+            "uq_tplo_rotation_tables_active",
+            "is_active",
+            unique=True,
+            postgresql_where=text("is_active"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    table_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    source: Mapped[str] = mapped_column(String(1000), nullable=False)
+    source_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    source_asset_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    target_slope_degrees: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    entries: Mapped[list[dict[str, float | int]]] = mapped_column(JSON, nullable=False)
+    entries_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

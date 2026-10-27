@@ -51,6 +51,9 @@ class UploadRepository:
     async def get_by_idempotency_key(self, tenant_id, actor_id, key_hash):
         return None
 
+    async def find_duplicate_for_case(self, tenant_id, case_id, sha256, now):
+        return None
+
     async def add_idempotently(self, upload, *, key_hash, request_hash):
         self.uploads.append(upload)
         return upload

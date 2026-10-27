@@ -5,9 +5,15 @@ import json
 import math
 from typing import Any
 
+from vetorthoplan.domain.planning.clinical_protocol import TploClinicalProtocol
+
 
 def derive_plan_measurements(
-    document: dict[str, Any], *, width_px: int | None, height_px: int | None
+    document: dict[str, Any],
+    *,
+    width_px: int | None,
+    height_px: int | None,
+    clinical_protocol: TploClinicalProtocol | None = None,
 ) -> dict[str, Any]:
     """Calculate displayable measurements from normalized source geometry.
 
@@ -15,6 +21,14 @@ def derive_plan_measurements(
     the manual reference and the source image dimensions used for pixel conversion.
     """
     result = json.loads(json.dumps(document))
+    result.pop("clinical_protocol_version", None)
+    _derive_additional_measurements(
+        result,
+        width_px=width_px,
+        height_px=height_px,
+        mm_per_pixel=derive_mm_per_pixel(result, width_px=width_px, height_px=height_px),
+        clinical_protocol=clinical_protocol,
+    )
     calibration = result.get("calibration")
     calibration_id: str | None = None
     mm_per_pixel: float | None = None
@@ -153,7 +167,104 @@ def derive_plan_measurements(
             "clinically_validated": False,
         }
 
+    _apply_tpa_acceptance(
+        result,
+        clinical_protocol=clinical_protocol,
+    )
+
     return result
+
+
+def derive_mm_per_pixel(
+    document: dict[str, Any], *, width_px: int | None, height_px: int | None
+) -> float | None:
+    calibration = document.get("calibration")
+    if calibration is None or not width_px or not height_px:
+        return None
+    if calibration["kind"] == "REFERENCE_LINE":
+        length_px = _distance(calibration["start"], calibration["end"], width_px, height_px)
+        known_length = calibration["known_length_mm"]
+    else:
+        length_px = 2 * _distance(calibration["center"], calibration["edge"], width_px, height_px)
+        known_length = calibration["known_diameter_mm"]
+    return known_length / length_px if length_px > 0 else None
+
+
+def _derive_additional_measurements(
+    document: dict[str, Any],
+    *,
+    width_px: int | None,
+    height_px: int | None,
+    mm_per_pixel: float | None,
+    clinical_protocol: TploClinicalProtocol | None,
+) -> None:
+    document.pop("additional_measurements", None)
+    if clinical_protocol is None:
+        document["additional_measurements"] = []
+        return
+
+    inputs = document.get("additional_measurements_input") or {}
+    landmarks = inputs.get("landmarks", {})
+    reference_values = inputs.get("reference_values", {})
+    results = []
+    for definition in clinical_protocol.measurements:
+        points = [landmarks.get(name) for name in definition.landmarks]
+        value = None
+        status = "LANDMARKS_REQUIRED"
+        if all(point is not None for point in points):
+            if definition.kind == "DISTANCE":
+                if width_px and height_px and mm_per_pixel is not None:
+                    value = _distance(points[0], points[1], width_px, height_px) * mm_per_pixel
+                    status = "CALCULATED"
+                else:
+                    status = "CALIBRATION_REQUIRED"
+            else:
+                value = _angle_degrees(points[0], points[1], points[2])
+                status = "CALCULATED"
+
+        reference = reference_values.get(definition.id)
+        error = abs(value - reference) if value is not None and reference is not None else None
+        accepted = error <= definition.max_absolute_error if error is not None else None
+        results.append(
+            {
+                "id": definition.id,
+                "label": definition.label,
+                "kind": definition.kind,
+                "status": status,
+                "value": value,
+                "reference_value": reference,
+                "absolute_error": error,
+                "max_absolute_error": definition.max_absolute_error,
+                "acceptance": "PASS" if accepted is True else "FAIL" if accepted is False else "NOT_ASSESSED",
+                "unit": definition.unit,
+                "clinically_validated": False,
+            }
+        )
+    document["additional_measurements"] = results
+    document["clinical_protocol_version"] = clinical_protocol.version
+
+
+def _apply_tpa_acceptance(
+    document: dict[str, Any], *, clinical_protocol: TploClinicalProtocol | None
+) -> None:
+    measurement = document.get("tplo_measurement")
+    if not isinstance(measurement, dict):
+        return
+    if clinical_protocol is None or clinical_protocol.tpa_max_absolute_error_degrees is None:
+        measurement["acceptance"] = "NOT_CONFIGURED"
+        return
+    inputs = document.get("additional_measurements_input") or {}
+    reference = (inputs.get("reference_values") or {}).get("TPA")
+    value = measurement.get("tpa_degrees")
+    tolerance = clinical_protocol.tpa_max_absolute_error_degrees
+    error = abs(value - reference) if value is not None and reference is not None else None
+    measurement.update(
+        reference_tpa_degrees=reference,
+        tpa_absolute_error_degrees=error,
+        tpa_max_absolute_error_degrees=tolerance,
+        acceptance=("PASS" if error <= tolerance else "FAIL") if error is not None else "NOT_ASSESSED",
+        clinical_protocol_version=clinical_protocol.version,
+    )
 
 
 def _distance(

@@ -128,10 +128,13 @@ class S3PresignedPostStorage:
         )
 
     async def read_uploaded_object(self, upload: ImageUpload) -> bytes:
+        return await self.read_object(upload.object_key)
+
+    async def read_object(self, object_key: str) -> bytes:
         response = await asyncio.to_thread(
             self._client.get_object,
             Bucket=self._bucket,
-            Key=upload.object_key,
+            Key=object_key,
         )
         body = response["Body"]
         try:
@@ -142,15 +145,32 @@ class S3PresignedPostStorage:
             raise RuntimeError("O storage devolveu conteúdo binário inválido.")
         return content
 
+    async def store_object(
+        self,
+        object_key: str,
+        content: bytes,
+        media_type: str,
+        *,
+        metadata: dict[str, str] | None = None,
+    ) -> None:
+        await asyncio.to_thread(
+            self._client.put_object,
+            Bucket=self._bucket,
+            Key=object_key,
+            Body=content,
+            ContentType=media_type,
+            ContentDisposition="attachment",
+            CacheControl="private, no-store",
+            Metadata=metadata or {},
+        )
+
     async def store_preview(
         self,
         upload: ImageUpload,
         content: bytes,
         media_type: str,
     ) -> StoredPreviewObject:
-        object_key = (
-            f"derived/{upload.tenant_id}/{upload.case_id}/{upload.image_id}/preview.png"
-        )
+        object_key = f"derived/{upload.tenant_id}/{upload.case_id}/{upload.image_id}/preview.png"
         await asyncio.to_thread(
             self._client.put_object,
             Bucket=self._bucket,
@@ -162,15 +182,22 @@ class S3PresignedPostStorage:
         )
         return StoredPreviewObject(object_key=object_key, media_type=media_type)
 
-    def create_presigned_get(self, object_key: str, now: datetime) -> PresignedReadTarget:
+    def create_presigned_get(
+        self,
+        object_key: str,
+        now: datetime,
+        *,
+        expires_in_seconds: int | None = None,
+    ) -> PresignedReadTarget:
+        expires = expires_in_seconds or self._expires_in_seconds
         url = self._presign_client.generate_presigned_url(
             "get_object",
             Params={"Bucket": self._bucket, "Key": object_key},
-            ExpiresIn=self._expires_in_seconds,
+            ExpiresIn=expires,
         )
         return PresignedReadTarget(
             url=url,
-            expires_at=now + timedelta(seconds=self._expires_in_seconds),
+            expires_at=now + timedelta(seconds=expires),
         )
 
     async def delete_object(self, object_key: str) -> None:

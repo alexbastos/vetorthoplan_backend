@@ -18,7 +18,18 @@ CASE_ID = UUID("00000000-0000-4000-8000-000000000803")
 IMAGE_ID = UUID("00000000-0000-4000-8000-000000000804")
 UPLOAD_ID = UUID("00000000-0000-4000-8000-000000000805")
 NOW = datetime(2026, 10, 16, 12, 0, tzinfo=UTC)
-DOCUMENT = {"schema_version": 1, "calibration": None, "tplo": None, "objects": []}
+DOCUMENT = {
+    "schema_version": 1,
+    "calibration": None,
+    "tplo": None,
+    "tplo_landmarks": None,
+    "tplo_measurement": None,
+    "radiographic_quality": None,
+    "additional_measurements_input": {"landmarks": {}, "reference_values": {}},
+    "additional_measurements": [],
+    "clinical_validation": None,
+    "objects": [],
+}
 
 
 def ready_image() -> ImageUpload:

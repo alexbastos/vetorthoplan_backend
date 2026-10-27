@@ -6,6 +6,7 @@ from vetorthoplan.application.errors import CaseDeletionConflictError, CaseNotFo
 from vetorthoplan.application.ports import (
     CaseRepository,
     Clock,
+    FinalizedPlanRepository,
     ImageUploadRepository,
     IngestionJobQueue,
     UploadStorage,
@@ -23,12 +24,14 @@ class DeleteCase:
         jobs: IngestionJobQueue,
         storage: UploadStorage,
         clock: Clock,
+        finalized_plans: FinalizedPlanRepository | None = None,
     ) -> None:
         self._cases = cases
         self._images = images
         self._jobs = jobs
         self._storage = storage
         self._clock = clock
+        self._finalized_plans = finalized_plans
 
     async def execute(self, case_id: UUID, context: TenantContext) -> None:
         lock_case = getattr(self._cases, "lock_by_id", self._cases.get_by_id)
@@ -50,6 +53,12 @@ class DeleteCase:
             raise CaseDeletionConflictError(case_id, "ACTIVE_INGESTION")
         if any(job.status == IngestionJobStatus.QUEUED for job in jobs):
             raise CaseDeletionConflictError(case_id, "ACTIVE_INGESTION")
+
+        if self._finalized_plans is not None:
+            finalizations = await self._finalized_plans.list_for_case(context.tenant_id, case_id)
+            for finalized in finalizations:
+                await self._storage.delete_object(finalized.report_png_key)
+                await self._storage.delete_object(finalized.report_pdf_key)
 
         # Keep database rows until every object deletion succeeds. Retrying after a
         # storage or database failure is safe because object deletion is idempotent.

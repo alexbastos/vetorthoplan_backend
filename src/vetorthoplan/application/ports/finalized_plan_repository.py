@@ -1,0 +1,16 @@
+from typing import Protocol
+from uuid import UUID
+
+from vetorthoplan.domain.planning.finalized_plan import FinalizedPlan
+
+
+class FinalizedPlanRepository(Protocol):
+    async def latest(self, tenant_id: UUID, image_id: UUID) -> FinalizedPlan | None: ...
+
+    async def get_by_version(self, tenant_id: UUID, image_id: UUID, version: int) -> FinalizedPlan | None: ...
+
+    async def add(self, finalized_plan: FinalizedPlan) -> bool: ...
+
+    async def list_for_image(self, tenant_id: UUID, image_id: UUID) -> list[FinalizedPlan]: ...
+
+    async def list_for_case(self, tenant_id: UUID, case_id: UUID) -> list[FinalizedPlan]: ...

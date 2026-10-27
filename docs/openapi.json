@@ -12,9 +12,9 @@
     },
     "version": "0.9.0",
     "x-git-branch": "calibration",
-    "x-git-commit": "3d12072f2dd2f2bfe1b1788640603a8ce6b70d57",
+    "x-git-commit": "279139d4c1ea795bd26578e3595f5e38b14b4712",
     "x-git-working-tree-dirty": true,
-    "x-generated-at": "2026-10-23T17:35:20.979570+00:00"
+    "x-generated-at": "2026-10-27T00:21:10.158527+00:00"
   },
   "paths": {
     "/health/live": {
@@ -1237,6 +1237,243 @@
           }
         }
       }
+    },
+    "/api/v1/images/{image_id}/plan/finalize": {
+      "post": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "Finalizar plano cirúrgico e gerar relatórios versionados",
+        "operationId": "finalize_image_plan_api_v1_images__image_id__plan_finalize_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizeImagePlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizedImagePlanResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/v1/images/{image_id}/plan/finalization": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "Consultar finalização e obter links atualizados dos relatórios",
+        "operationId": "get_finalized_image_plan_api_v1_images__image_id__plan_finalization_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalizedImagePlanResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tplo/rotation-table": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "Consultar tabela de referência de rotação TPLO",
+        "description": "Retorna a versão ativa persistida no banco (ou uma substituição explicitamente configurada) e permite filtrar por TPA e diâmetro da lâmina. A consulta usa correspondência exata; não interpola nem recomenda uma rotação cirúrgica.",
+        "operationId": "get_tplo_rotation_table_api_v1_tplo_rotation_table_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tpa_degrees",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 90,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tpa Degrees"
+            }
+          },
+          {
+            "name": "blade_diameter_mm",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Blade Diameter Mm"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TploRotationTableResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tplo/clinical-protocol": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "Consultar protocolo de medidas clínicas TPLO",
+        "description": "Retorna definições e tolerâncias versionadas configuradas pelo ambiente. A consulta não homologa o protocolo nem recomenda conduta clínica.",
+        "operationId": "get_tplo_clinical_protocol_api_v1_tplo_clinical_protocol_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TploClinicalProtocolResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1857,6 +2094,117 @@
           "message"
         ],
         "title": "ErrorResponse"
+      },
+      "FinalizeImagePlanRequest": {
+        "properties": {
+          "base_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "base_revision"
+        ],
+        "title": "FinalizeImagePlanRequest"
+      },
+      "FinalizedImagePlanResponse": {
+        "properties": {
+          "image_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Image Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "plan_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Plan Revision"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Snapshot"
+          },
+          "snapshot_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Snapshot Sha256"
+          },
+          "report_template_version": {
+            "type": "string",
+            "title": "Report Template Version"
+          },
+          "finalized_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Finalized By"
+          },
+          "finalized_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Finalized At"
+          },
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/FinalizedReportFileResponse"
+            },
+            "type": "array",
+            "title": "Reports"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_id",
+          "version",
+          "plan_revision",
+          "snapshot",
+          "snapshot_sha256",
+          "report_template_version",
+          "finalized_by",
+          "finalized_at",
+          "reports"
+        ],
+        "title": "FinalizedImagePlanResponse"
+      },
+      "FinalizedReportFileResponse": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "PNG",
+              "PDF"
+            ],
+            "title": "Format"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256"
+          },
+          "download_url": {
+            "type": "string",
+            "title": "Download Url"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "format",
+          "sha256",
+          "download_url",
+          "expires_at"
+        ],
+        "title": "FinalizedReportFileResponse"
       },
       "HTTPValidationError": {
         "properties": {
@@ -2698,6 +3046,16 @@
               }
             ]
           },
+          "radiographic_quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TploRadiographicQuality"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "tplo_landmarks": {
             "anyOf": [
               {
@@ -2707,6 +3065,17 @@
                 "type": "null"
               }
             ]
+          },
+          "additional_measurements_input": {
+            "$ref": "#/components/schemas/TploAdditionalMeasurementInput"
+          },
+          "additional_measurements": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Additional Measurements"
           },
           "tplo_measurement": {
             "anyOf": [
@@ -3185,6 +3554,29 @@
         ],
         "title": "SaveImagePlanRequest"
       },
+      "TploAdditionalMeasurementInput": {
+        "properties": {
+          "landmarks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PlanPoint"
+            },
+            "type": "object",
+            "maxProperties": 40,
+            "title": "Landmarks"
+          },
+          "reference_values": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "maxProperties": 50,
+            "title": "Reference Values"
+          }
+        },
+        "type": "object",
+        "title": "TploAdditionalMeasurementInput",
+        "description": "User placed named landmarks and an independent reference measurement."
+      },
       "TploClinicalMeasurement": {
         "properties": {
           "method": {
@@ -3253,6 +3645,73 @@
             ],
             "title": "Calibration Id"
           },
+          "reference_tpa_degrees": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Tpa Degrees"
+          },
+          "tpa_absolute_error_degrees": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tpa Absolute Error Degrees"
+          },
+          "tpa_max_absolute_error_degrees": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 90.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tpa Max Absolute Error Degrees"
+          },
+          "acceptance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "NOT_ASSESSED",
+                  "NOT_CONFIGURED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptance"
+          },
+          "clinical_protocol_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinical Protocol Version"
+          },
           "clinically_validated": {
             "type": "boolean",
             "const": false,
@@ -3266,6 +3725,117 @@
           "status"
         ],
         "title": "TploClinicalMeasurement"
+      },
+      "TploClinicalProtocolResponse": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "protocol_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol Version"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "measurements": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Measurements"
+          },
+          "acceptance_enabled": {
+            "type": "boolean",
+            "title": "Acceptance Enabled",
+            "default": false
+          },
+          "clinically_validated": {
+            "type": "boolean",
+            "const": false,
+            "title": "Clinically Validated",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured"
+        ],
+        "title": "TploClinicalProtocolResponse"
+      },
+      "TploClinicalReviewAudit": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVED",
+              "REJECTED"
+            ],
+            "title": "Decision"
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actor Id"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Reviewed At"
+          },
+          "protocol_version": {
+            "type": "string",
+            "title": "Protocol Version"
+          },
+          "measurement_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Method"
+          },
+          "calibration_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "actor_id",
+          "reviewed_at",
+          "protocol_version"
+        ],
+        "title": "TploClinicalReviewAudit"
       },
       "TploClinicalValidation": {
         "properties": {
@@ -3302,15 +3872,10 @@
           },
           "required_measurements": {
             "items": {
-              "type": "string",
-              "enum": [
-                "TPA",
-                "PLATEAU_AXIS",
-                "TIBIAL_AXIS"
-              ]
+              "type": "string"
             },
             "type": "array",
-            "maxItems": 10,
+            "maxItems": 50,
             "title": "Required Measurements"
           },
           "reviewer_notes": {
@@ -3336,6 +3901,13 @@
               }
             ],
             "title": "Rejection Reason"
+          },
+          "audit": {
+            "items": {
+              "$ref": "#/components/schemas/TploClinicalReviewAudit"
+            },
+            "type": "array",
+            "title": "Audit"
           }
         },
         "type": "object",
@@ -3470,6 +4042,197 @@
         ],
         "title": "TploPlanMetadata",
         "description": "Clinical inputs, including laterality and radiographic projection for the plan image."
+      },
+      "TploRadiographicQuality": {
+        "properties": {
+          "true_lateral": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NOT_ASSESSED"
+            ],
+            "title": "True Lateral",
+            "default": "NOT_ASSESSED"
+          },
+          "femoral_condyles_superimposed": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NOT_ASSESSED"
+            ],
+            "title": "Femoral Condyles Superimposed",
+            "default": "NOT_ASSESSED"
+          },
+          "stifle_and_tarsus_included": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NOT_ASSESSED"
+            ],
+            "title": "Stifle And Tarsus Included",
+            "default": "NOT_ASSESSED"
+          },
+          "tibial_axis_centered": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NOT_ASSESSED"
+            ],
+            "title": "Tibial Axis Centered",
+            "default": "NOT_ASSESSED"
+          },
+          "tibial_plateau_visible": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NOT_ASSESSED"
+            ],
+            "title": "Tibial Plateau Visible",
+            "default": "NOT_ASSESSED"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "title": "TploRadiographicQuality",
+        "description": "Image quality observations recorded by the clinician for a TPLO view."
+      },
+      "TploRotationTableResponse": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "table_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Version"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "source_asset_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Asset Url"
+          },
+          "target_slope_degrees": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Slope Degrees"
+          },
+          "entries_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entries Sha256"
+          },
+          "query": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Query"
+          },
+          "match_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Match Count"
+          },
+          "entries": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Entries"
+          },
+          "recommendation_enabled": {
+            "type": "boolean",
+            "const": false,
+            "title": "Recommendation Enabled",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "table_version",
+          "source",
+          "match_count",
+          "entries"
+        ],
+        "title": "TploRotationTableResponse"
       },
       "ValidationError": {
         "properties": {
