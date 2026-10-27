@@ -138,23 +138,26 @@ def upgrade() -> None:
 
     entries = _validated_entries()
     canonical_entries = json.dumps(entries, sort_keys=True, separators=(",", ":"))
-    json_literal = canonical_entries.replace("'", "''")
-    values = (
-        "'d99c679a-3af7-4c26-a087-aec69b0f0e91'",
-        "'" + TABLE_VERSION.replace("'", "''") + "'",
-        "'" + TABLE_SOURCE.replace("'", "''") + "'",
-        "'" + TABLE_SOURCE_URL.replace("'", "''") + "'",
-        "'" + TABLE_IMAGE_URL.replace("'", "''") + "'",
-        "5",
-        "'" + json_literal + "'::json",
-        "'" + hashlib.sha256(canonical_entries.encode("utf-8")).hexdigest() + "'",
-        "TRUE",
-        "'" + datetime.now(UTC).isoformat() + "'",
-    )
-    op.execute(
-        "INSERT INTO tplo_rotation_tables "
-        "(id, table_version, source, source_url, source_asset_url, target_slope_degrees, entries, "
-        "entries_sha256, is_active, created_at) VALUES (" + ", ".join(values) + ")"
+    op.get_bind().execute(
+        sa.text(
+            "INSERT INTO tplo_rotation_tables "
+            "(id, table_version, source, source_url, source_asset_url, target_slope_degrees, entries, "
+            "entries_sha256, is_active, created_at) VALUES "
+            "(:id, :table_version, :source, :source_url, :source_asset_url, :target_slope_degrees, "
+            "CAST(:entries AS json), :entries_sha256, :is_active, :created_at)"
+        ),
+        {
+            "id": "d99c679a-3af7-4c26-a087-aec69b0f0e91",
+            "table_version": TABLE_VERSION,
+            "source": TABLE_SOURCE,
+            "source_url": TABLE_SOURCE_URL,
+            "source_asset_url": TABLE_IMAGE_URL,
+            "target_slope_degrees": 5,
+            "entries": canonical_entries,
+            "entries_sha256": hashlib.sha256(canonical_entries.encode("utf-8")).hexdigest(),
+            "is_active": True,
+            "created_at": datetime.now(UTC),
+        },
     )
     op.execute(
         """CREATE FUNCTION protect_tplo_rotation_table_version() RETURNS trigger AS $$
