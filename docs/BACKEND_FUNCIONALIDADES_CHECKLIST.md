@@ -46,17 +46,30 @@ Documento de acompanhamento do recorte inicial do VetOrthoPlan. Estados:
 
 | Funcionalidade | Estado | Observação |
 |---|---|---|
-| Parâmetros clínicos de rotação e alvo de slope | Pendente | Depende do protocolo e da tabela adotados. |
+| Parâmetros clínicos de rotação e alvo de slope | Parcial | Endpoint e persistência da tabela existem; falta integrar os controles no frontend e homologar valores e regras com o parceiro clínico. |
 | Máscara editável e transformação visual do fragmento no frontend | Parcial | Backend persiste contorno e transformação; integração visual pendente. |
-| Implantes e catálogo versionado | Pendente | Assets e regras de escala ainda precisam de contrato. |
+| Implantes e catálogo versionado | Pendente | Assets, regras de escala, compatibilidade por diâmetro e origem dos arquivos ainda precisam de contrato. |
+| Moldes digitais de próteses/implantes | Pendente | Não são necessários para concluir a etapa de medição TPLO; entram depois do contrato do catálogo e antes da simulação final de posicionamento do implante. |
 | Finalização imutável e checklist de completude | Parcial | Backend cria snapshot imutável e bloqueia edições; falta integrar a ação no frontend. |
 | Relatório PNG/PDF versionado | Parcial | PNG e PDF gerados e armazenados por versão; fluxo de download no frontend pendente. |
 
-## Próximas prioridades do backend
+## Próximas funcionalidades a implementar
 
-1. Homologar com o parceiro o protocolo de tolerâncias e medidas anatômicas configuráveis.
-2. Homologar os parâmetros clínicos de rotação e alvo de slope além da tabela de referência.
-3. Definir o contrato do catálogo de implantes versionado, incluindo assets e escala.
+1. Finalizar o frontend do editor TPLO: canvas com zoom/pan, pontos anatômicos arrastáveis, linhas/ângulos, calibração e estado de qualidade radiográfica.
+2. Integrar no frontend a revisão clínica: `DRAFT` -> `READY_FOR_REVIEW` -> `APPROVED`/`REJECTED`, com bloqueios e auditoria visível.
+3. Integrar a simulação da osteotomia e os parâmetros de correção, exibindo a geometria calculada pelo backend e permitindo revisão manual antes da finalização.
+4. Integrar a finalização imutável e o download dos relatórios PNG/PDF.
+5. Executar contrato consumidor-produtor autenticado entre frontend/BFF e backend, incluindo conflitos de revisão, `401/403`, imagem não elegível e plano já finalizado.
+6. Homologar com o parceiro veterinário: posicionamento radiográfico, marcos anatômicos, método do TPA, tolerâncias, slope-alvo e tabela de rotação.
+7. Definir catálogo versionado de implantes e só então importar os moldes digitais das próteses/implantes.
+
+## Quando os moldes serão necessários
+
+Os moldes não são pré-requisito para o fluxo atual de planejamento geométrico TPLO. O backend já calcula e persiste calibração, marcos, TPA, medidas adicionais, parâmetros de correção, tabela de rotação, simulação geométrica e snapshot final.
+
+Os arquivos dos moldes passam a ser necessários na funcionalidade de catálogo e simulação de implante, quando o frontend precisar mostrar o implante escolhido sobre a osteotomia e verificar escala, orientação, compatibilidade e posicionamento. Antes de receber arquivos, o contrato precisa definir: formato (`STL`, `OBJ` ou outro), unidade, sistema de coordenadas, lateridade, versão, diâmetro compatível, origem/licença, checksum e regras de visualização. O backend deve validar metadados e checksum; o frontend deve carregar o molde somente depois de selecionar um item versionado do catálogo.
+
+Ordem recomendada: homologar medidas e correção; integrar a simulação sem molde; definir catálogo e contrato de assets; receber um conjunto pequeno de moldes oficiais; validar escala e orientação com o parceiro; ampliar o catálogo.
 
 ### Checklist de qualidade radiográfica implementado
 
