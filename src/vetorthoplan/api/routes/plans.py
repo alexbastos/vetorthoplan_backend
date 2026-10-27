@@ -6,6 +6,7 @@ from vetorthoplan.api.dependencies import (
     FinalizeImagePlanDependency,
     GetFinalizedImagePlanDependency,
     GetImagePlanDependency,
+    ReviewImagePlanDependency,
     SaveImagePlanDependency,
     TenantContextDependency,
     get_tenant_context,
@@ -15,9 +16,11 @@ from vetorthoplan.api.schemas import (
     FinalizedImagePlanResponse,
     FinalizeImagePlanRequest,
     ImagePlanResponse,
+    ReviewImagePlanRequest,
     SaveImagePlanRequest,
 )
 from vetorthoplan.application.use_cases.finalize_image_plan import FinalizedPlanView
+from vetorthoplan.application.use_cases.image_plans import ReviewImagePlanCommand
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(get_tenant_context)])
 
@@ -53,6 +56,42 @@ async def save_image_plan(
         image_id,
         payload.base_revision,
         payload.document.model_dump(mode="json"),
+        context,
+    )
+    return ImagePlanResponse(**{field: getattr(plan, field) for field in ImagePlanResponse.model_fields})
+
+
+@router.post(
+    "/images/{image_id}/plan/review",
+    response_model=ImagePlanResponse,
+    tags=["Planning"],
+    summary="Avançar a revisão clínica do plano TPLO",
+    description=(
+        "Aplica somente a decisão e o checklist clínico ao plano persistido. "
+        "A geometria e as medidas não são aceitas no payload desta operação; "
+        "a decisão é tomada sobre a revisão enviada para análise."
+    ),
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+async def review_image_plan(
+    image_id: UUID,
+    payload: ReviewImagePlanRequest,
+    context: TenantContextDependency,
+    use_case: ReviewImagePlanDependency,
+) -> ImagePlanResponse:
+    plan = await use_case.execute(
+        image_id,
+        payload.base_revision,
+        ReviewImagePlanCommand(
+            status=payload.status,
+            orientation_confirmed=payload.orientation_confirmed,
+            image_quality_confirmed=payload.image_quality_confirmed,
+            calibration_confirmed=payload.calibration_confirmed,
+            anatomical_references_confirmed=payload.anatomical_references_confirmed,
+            required_measurements=payload.required_measurements,
+            reviewer_notes=payload.reviewer_notes,
+            rejection_reason=payload.rejection_reason,
+        ),
         context,
     )
     return ImagePlanResponse(**{field: getattr(plan, field) for field in ImagePlanResponse.model_fields})

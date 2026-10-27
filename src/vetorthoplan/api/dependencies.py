@@ -26,10 +26,12 @@ from vetorthoplan.application.use_cases import (
     ListCases,
     RenameImage,
     RetryIngestionJob,
+    ReviewImagePlan,
     SaveImagePlan,
 )
 from vetorthoplan.config.settings import Settings, get_settings
 from vetorthoplan.domain.planning.clinical_protocol import parse_clinical_protocol
+from vetorthoplan.domain.planning.rotation_table import parse_rotation_table
 from vetorthoplan.infrastructure.authentication.identity_mapping import (
     resolve_actor_id,
     resolve_tenant_id,
@@ -340,8 +342,39 @@ def get_save_image_plan(
         id_generator=UuidGenerator(),
         clock=SystemClock(),
         clinical_protocol=parse_clinical_protocol(settings.tplo_clinical_protocol_json),
+        rotation_table=parse_rotation_table(
+            settings.tplo_rotation_table_version,
+            settings.tplo_rotation_table_source,
+            settings.tplo_rotation_table_json,
+            settings.tplo_rotation_table_target_slope_degrees,
+        ),
+        rotation_table_repository=SqlAlchemyTploRotationTableRepository(session),
         finalized_plans=SqlAlchemyFinalizedPlanRepository(session),
     )
+
+
+def get_review_image_plan(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ReviewImagePlan:
+    plans = SqlAlchemyImagePlanRepository(session)
+    images = SqlAlchemyImageUploadRepository(session)
+    saver = SaveImagePlan(
+        plans=plans,
+        images=images,
+        id_generator=UuidGenerator(),
+        clock=SystemClock(),
+        clinical_protocol=parse_clinical_protocol(settings.tplo_clinical_protocol_json),
+        rotation_table=parse_rotation_table(
+            settings.tplo_rotation_table_version,
+            settings.tplo_rotation_table_source,
+            settings.tplo_rotation_table_json,
+            settings.tplo_rotation_table_target_slope_degrees,
+        ),
+        rotation_table_repository=SqlAlchemyTploRotationTableRepository(session),
+        finalized_plans=SqlAlchemyFinalizedPlanRepository(session),
+    )
+    return ReviewImagePlan(plans=plans, images=images, saver=saver)
 
 
 def get_finalize_image_plan(
@@ -411,6 +444,7 @@ RenameImageDependency = Annotated[RenameImage, Depends(get_rename_image)]
 GetImagePreviewDependency = Annotated[GetImagePreview, Depends(get_image_preview)]
 GetImagePlanDependency = Annotated[GetImagePlan, Depends(get_image_plan)]
 SaveImagePlanDependency = Annotated[SaveImagePlan, Depends(get_save_image_plan)]
+ReviewImagePlanDependency = Annotated[ReviewImagePlan, Depends(get_review_image_plan)]
 FinalizeImagePlanDependency = Annotated[FinalizeImagePlan, Depends(get_finalize_image_plan)]
 GetFinalizedImagePlanDependency = Annotated[
     GetFinalizedImagePlan,

@@ -487,6 +487,7 @@ class TploPlanMetadata(BaseModel):
     eligibility_reasons: list[str] = Field(default_factory=list, max_length=10)
     current_slope_degrees: float | None = Field(default=None, ge=0, le=90)
     target_slope_degrees: float | None = Field(default=None, ge=0, le=90)
+    blade_diameter_mm: float | None = Field(default=None, gt=0, le=100)
     notes: str | None = Field(default=None, max_length=2_000)
 
     @model_validator(mode="after")
@@ -566,6 +567,28 @@ class TploClinicalMeasurement(BaseModel):
     clinically_validated: Literal[False] = False
 
 
+class TploCorrectionPlan(BaseModel):
+    status: Literal[
+        "CALCULATED",
+        "LANDMARKS_REQUIRED",
+        "BLADE_DIAMETER_REQUIRED",
+        "ROTATION_TABLE_NOT_CONFIGURED",
+        "EXACT_TABLE_MATCH_REQUIRED",
+        "TARGET_SLOPE_MISMATCH",
+        "TARGET_SLOPE_REQUIRED",
+    ]
+    preoperative_tpa_degrees: float | None = Field(default=None, ge=0, le=90)
+    current_slope_degrees: float | None = Field(default=None, ge=0, le=90)
+    target_slope_degrees: float | None = Field(default=None, ge=0, le=90)
+    blade_diameter_mm: float | None = Field(default=None, gt=0)
+    rotation_mm: float | None = Field(default=None, gt=0)
+    table_version: str | None = None
+    table_source: str | None = None
+    table_entries_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    acceptance: Literal["PASS", "NOT_ASSESSED"] = "NOT_ASSESSED"
+    clinically_validated: Literal[False] = False
+
+
 class TploClinicalValidation(BaseModel):
     status: Literal["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED"] = "DRAFT"
     orientation_confirmed: bool = False
@@ -600,6 +623,8 @@ class TploClinicalReviewAudit(BaseModel):
     protocol_version: str
     measurement_method: str | None = None
     calibration_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    rotation_table_version: str | None = None
+    clinical_protocol_source: str | None = None
 
 
 class PlanDocument(BaseModel):
@@ -613,6 +638,7 @@ class PlanDocument(BaseModel):
     )
     additional_measurements: list[dict[str, object]] = Field(default_factory=list)
     tplo_measurement: TploClinicalMeasurement | None = None
+    tplo_correction: TploCorrectionPlan | None = None
     clinical_validation: TploClinicalValidation | None = None
     objects: list[PlanObject] = Field(default_factory=list, max_length=500)
 
@@ -620,6 +646,31 @@ class PlanDocument(BaseModel):
 class SaveImagePlanRequest(BaseModel):
     base_revision: int = Field(ge=0)
     document: PlanDocument
+
+
+class ReviewImagePlanRequest(BaseModel):
+    """Command for the server-owned clinical review transition.
+
+    Geometry is intentionally absent from this payload. The reviewer decides on the
+    persisted candidate that was submitted for review, preventing the decision call
+    from silently changing measurements or the TPLO simulation.
+    """
+
+    base_revision: int = Field(ge=1)
+    status: Literal["READY_FOR_REVIEW", "APPROVED", "REJECTED"]
+    orientation_confirmed: bool | None = None
+    image_quality_confirmed: bool | None = None
+    calibration_confirmed: bool | None = None
+    anatomical_references_confirmed: bool | None = None
+    required_measurements: list[str] | None = Field(default=None, max_length=50)
+    reviewer_notes: str | None = Field(default=None, max_length=2_000)
+    rejection_reason: str | None = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def validate_rejection(self) -> "ReviewImagePlanRequest":
+        if self.status == "REJECTED" and not (self.rejection_reason or "").strip():
+            raise ValueError("rejection_reason é obrigatório quando a validação é rejeitada")
+        return self
 
 
 class ImagePlanResponse(BaseModel):
@@ -684,6 +735,7 @@ class TploClinicalProtocolResponse(BaseModel):
     configured: bool
     protocol_version: str | None = None
     source: str | None = None
+    tpa_max_absolute_error_degrees: float | None = Field(default=None, gt=0, le=90)
     measurements: list[dict[str, object]] = Field(default_factory=list)
     acceptance_enabled: bool = False
     clinically_validated: Literal[False] = False

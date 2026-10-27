@@ -59,9 +59,16 @@ A primeira gravação usa revisão `0`; a resposta persistida passa a `1`. Cada 
 
 ## Validação clínica
 
-O documento aceita `clinical_validation` para acompanhar o checklist do veterinário. Os estados são `DRAFT`, `READY_FOR_REVIEW`, `APPROVED` e `REJECTED`. Para `READY_FOR_REVIEW`, orientação, qualidade da imagem, calibração e referências anatômicas precisam estar confirmadas. `REJECTED` exige `rejection_reason`.
+O documento aceita `clinical_validation` para acompanhar o checklist do veterinário. Os estados são `DRAFT`, `READY_FOR_REVIEW`, `APPROVED` e `REJECTED`. Para `READY_FOR_REVIEW`, orientação, qualidade da imagem, calibração, referências anatômicas, elegibilidade, calibração calculada e TPA calculado precisam estar confirmados. `REJECTED` exige `rejection_reason`. A decisão `APPROVED`/`REJECTED` deve referir-se à mesma revisão submetida para análise; qualquer mudança nas medidas ou entradas exige voltar a `READY_FOR_REVIEW`. Cada gravação incrementa `revision` e as decisões são auditadas no servidor com ator, horário e versões do protocolo/tabela.
 
 `APPROVED` só é persistido quando a imagem TPLO está `ELIGIBLE`, a calibração manual foi calculada e todas as medidas em `required_measurements` foram calculadas. Caso contrário, a API responde `422 CLINICAL_VALIDATION_INVALID`.
+
+Para evitar que o cliente reenvie ou altere a geometria no momento da decisão, o backend também expõe
+`POST /api/v1/images/{image_id}/plan/review`. O payload recebe `base_revision`, `status` e, quando
+necessário, o checklist, as medidas obrigatórias e as observações do revisor. A operação altera apenas
+`clinical_validation` no documento persistido e reaplica todas as regras do plano; não aceita pontos,
+objetos, calibração ou resultados derivados. Use `READY_FOR_REVIEW` para submeter o candidato e depois
+`APPROVED` ou `REJECTED` sobre a mesma revisão. A decisão é auditada pelo servidor.
 
 Medidas anatômicas adicionais são definidas pelo ambiente em `TPLO_CLINICAL_PROTOCOL_JSON` e consultadas em `GET /api/v1/tplo/clinical-protocol`. O cliente envia em `additional_measurements_input.landmarks` pontos normalizados com chaves nomeadas pelo protocolo e, em `reference_values`, valores de referência independentes. `DISTANCE` exige dois marcos e calibração manual; `ANGLE` exige três marcos. O backend recalcula as medidas e retorna erro absoluto, limite configurado e aceitação (`PASS`, `FAIL` ou `NOT_ASSESSED`). Para TPA, a referência usa a chave `TPA` e a tolerância é configurada separadamente.
 
@@ -86,9 +93,13 @@ Para calcular TPA, envie `tplo_landmarks` com `plateau_cranial`, `plateau_caudal
 
 `tplo_measurement.clinically_validated` permanece `false`: o cálculo reproduz a geometria descrita, mas o parceiro clínico ainda precisa confirmar os marcos, tolerâncias e desempenho com radiografias autorizadas. A qualidade da radiografia precisa ser revisada: incidência lateral verdadeira, côndilos femorais e tibiais superpostos, tíbia alinhada, feixe centrado no joelho e toda a tíbia incluída. O marcador de calibração deve ficar próximo do joelho e no mesmo plano/altura. Osteófitos ou posicionamento ruim podem dificultar marcos e alterar a medida. Consulte [Today's Veterinary Practice: como medir o TPA](https://todaysveterinarypractice.com/orthopedics/small-animal-cruciate-disease-tibial-plateau-angle/) e estudos sobre [eixo completo versus eixos proximais](https://pubmed.ncbi.nlm.nih.gov/13677389/) e [variação do marco caudal](https://pubmed.ncbi.nlm.nih.gov/24003987/).
 
+O TPA calculado é incluído em `tplo_measurement` na resposta do `PUT` e nas consultas `GET` seguintes. A tolerância absoluta só pode produzir `PASS` quando `TPLO_CLINICAL_PROTOCOL_JSON` configura uma tolerância e há valor de referência independente em `additional_measurements_input.reference_values.TPA`; sem isso o resultado é `NOT_CONFIGURED` ou `NOT_ASSESSED`. A aprovação exige TPA como medida obrigatória com aceitação `PASS`.
+
 Para a etapa de rotação, registre o TPA pré-operatório e o diâmetro da lâmina escolhida. O artigo de [Garofallo](https://www.vetgarofallo.com/post/tabela-tplo) direciona à tabela oficial de rotação TPLO da [BioMedtrix/VOI](https://biomedtrix.com/tplo-rotation-guide-chart-1-15-18-2/), cujo objetivo de exemplo é slope pós-operatório aproximado de 5°. Não extrapole valores fora da tabela nem transforme o exemplo publicado (TPA 25°, lâmina 24 mm, rotação 8,38 mm) em fórmula universal; a seleção e conferência cabem ao cirurgião.
 
 O endpoint `GET /api/v1/tplo/rotation-table` consulta por padrão a [tabela BioMedtrix/VOI `1-15-18`](https://biomedtrix.com/tplo-rotation-guide-chart-1-15-18-2/), carregada pela migration `20261026_0018`. A versão, a fonte, os links do gráfico, o alvo de slope de 5 graus, o SHA-256 e as 360 combinações são persistidos no banco. A migration valida a grade de TPA (10–45 graus), os dez diâmetros de lâmina (8–33 mm), valores finitos/positivos e a referência publicada TPA 25° com lâmina 24 mm = 8,38 mm. `tpa_degrees` e `blade_diameter_mm` filtram por correspondência numérica exata; ausência de correspondência retorna lista vazia. Não existe interpolação nem recomendação automática. Uma versão posterior homologada pode ser fornecida pelas variáveis `TPLO_ROTATION_TABLE_VERSION`, `TPLO_ROTATION_TABLE_SOURCE` e `TPLO_ROTATION_TABLE_JSON`, sempre em conjunto.
+
+Ao enviar `tplo.blade_diameter_mm`, o salvamento do plano procura uma correspondência exata entre o TPA calculado e o diâmetro na tabela ativa. O documento retornado inclui `tplo_correction` com `status`, TPA pré-operatório, slope atual/alvo, diâmetro, `rotation_mm`, versão/fonte/hash da tabela e aceitação. Não há arredondamento nem interpolação. O alvo deve vir da tabela ou de `tplo.target_slope_degrees`; para tabelas configuradas por ambiente, declare o alvo associado em `TPLO_ROTATION_TABLE_TARGET_SLOPE_DEGREES`. Um alvo manual divergente deixa a correção sem aceitação. `status: CALCULATED` representa correspondência de tabela, não validação clínica. Para aprovar um plano com lâmina selecionada, inclua `TPLO_CORRECTION` nas medidas obrigatórias.
 
 ## Finalizar e emitir relatório
 
@@ -96,7 +107,7 @@ O endpoint `GET /api/v1/tplo/rotation-table` consulta por padrão a [tabela BioM
 
 O backend grava um snapshot imutável do plano e gera PNG e PDF com imagem anotada, resumo geométrico, medidas, calibração e auditoria. A resposta inclui a versão da finalização, a revisão de origem, SHA-256 do snapshot e de cada arquivo, além de links temporários para download. `GET /api/v1/images/{image_id}/plan/finalization` consulta o snapshot e emite novos links. Depois de finalizado, `PUT /api/v1/images/{image_id}/plan` retorna `409 IMAGE_PLAN_FINALIZED`.
 
-Os relatórios identificam a versão do template `TPLO_FINAL_REPORT_V1`. A migration `20261026_0017_finalized_image_plans` cria a tabela de snapshots e gatilhos no banco que bloqueiam alterações ao snapshot e ao plano congelado. A exclusão autorizada da imagem ou do caso também remove os relatórios do armazenamento.
+Os relatórios identificam a versão do template `TPLO_FINAL_REPORT_V2` e incluem a correção TPLO, versão/hash da tabela e aviso explícito de que os cálculos não foram validados clinicamente. Quando o plano seleciona diâmetro de lâmina, a finalização também exige `TPLO_CORRECTION` entre as medidas obrigatórias e correspondência válida na tabela. A migration `20261026_0017_finalized_image_plans` cria a tabela de snapshots e gatilhos no banco que bloqueiam alterações ao snapshot e ao plano congelado. A exclusão autorizada da imagem ou do caso também remove os relatórios do armazenamento.
 
 Ao salvar, o backend preserva pontos normalizados e recalcula os resultados derivados usando a largura e altura em pixels da imagem original `READY`. Resultados enviados pelo cliente são descartados e recalculados; o frontend deve enviar a geometria e não tentar definir a escala nem os valores medidos.
 

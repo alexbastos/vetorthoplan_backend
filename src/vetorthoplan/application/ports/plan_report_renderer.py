@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 from uuid import UUID
 
-REPORT_TEMPLATE_VERSION = "TPLO_FINAL_REPORT_V1"
+REPORT_TEMPLATE_VERSION = "TPLO_FINAL_REPORT_V2"
 
 
 @dataclass(frozen=True, slots=True)

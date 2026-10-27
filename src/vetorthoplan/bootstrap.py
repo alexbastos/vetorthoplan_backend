@@ -7,6 +7,7 @@ from vetorthoplan.api.routes.cases import router as cases_router
 from vetorthoplan.api.routes.health import router as health_router
 from vetorthoplan.api.routes.image_uploads import router as image_uploads_router
 from vetorthoplan.api.routes.images import router as images_router
+from vetorthoplan.api.routes.implant_catalog import router as implant_catalog_router
 from vetorthoplan.api.routes.plans import router as plans_router
 from vetorthoplan.api.routes.tplo import router as tplo_router
 from vetorthoplan.api.schemas import ErrorResponse
@@ -383,6 +384,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(cases_router)
     app.include_router(image_uploads_router)
+    app.include_router(implant_catalog_router)
     app.include_router(images_router)
     app.include_router(plans_router)
     app.include_router(tplo_router)

@@ -80,6 +80,26 @@ class TploPlanReportRenderer:
     @staticmethod
     def _detail_pages(snapshot: dict[str, Any]) -> list[Image.Image]:
         rows: list[str] = []
+        correction = snapshot.get("tplo_correction") or {}
+        rows.append("TPLO calculations are not clinically validated.")
+        rows.append(
+            f"Correction: {correction.get('status', 'not calculated')}; "
+            f"pre-op TPA={correction.get('preoperative_tpa_degrees')} degrees"
+        )
+        rows.append(
+            f"Current slope={correction.get('current_slope_degrees')} degrees; "
+            f"target={correction.get('target_slope_degrees')} degrees; "
+            f"blade={correction.get('blade_diameter_mm')} mm"
+        )
+        rows.append(
+            f"Rotation={correction.get('rotation_mm')} mm; "
+            f"acceptance={correction.get('acceptance', 'NOT_ASSESSED')}"
+        )
+        rows.append(
+            f"Rotation table: {correction.get('table_version', 'not recorded')}; "
+            f"source={correction.get('table_source', 'not recorded')}"
+        )
+        rows.append(f"Rotation table SHA-256: {correction.get('table_entries_sha256', 'not recorded')}")
         for item in snapshot.get("additional_measurements", []):
             if isinstance(item, dict):
                 rows.append(
@@ -213,10 +233,12 @@ class TploPlanReportRenderer:
         tplo = snapshot.get("tplo") or {}
         validation = snapshot.get("clinical_validation") or {}
         measurement = snapshot.get("tplo_measurement") or {}
+        correction = snapshot.get("tplo_correction") or {}
         quality = snapshot.get("radiographic_quality") or {}
         calibration = snapshot.get("calibration") or {}
         calibration_result = calibration.get("result") or {}
         rows = [
+            "TPLO calculation validation: NOT CLINICALLY VALIDATED",
             (
                 f"Laterality: {tplo.get('laterality', 'not recorded')}  |  "
                 f"Projection: {tplo.get('projection', 'not recorded')}"
@@ -235,6 +257,24 @@ class TploPlanReportRenderer:
             ),
             "Radiographic quality: "
             + ", ".join(f"{key}={value}" for key, value in quality.items() if key != "notes"),
+            (
+                f"Correction: {correction.get('status', 'not calculated')}; "
+                f"pre-op TPA={correction.get('preoperative_tpa_degrees')} degrees"
+            ),
+            (
+                f"Current slope={correction.get('current_slope_degrees')} degrees; "
+                f"target={correction.get('target_slope_degrees')} degrees; "
+                f"blade={correction.get('blade_diameter_mm')} mm"
+            ),
+            (
+                f"Rotation={correction.get('rotation_mm')} mm; "
+                f"acceptance={correction.get('acceptance', 'NOT_ASSESSED')}"
+            ),
+            (
+                f"Rotation table: {correction.get('table_version', 'not recorded')}; "
+                f"source={correction.get('table_source', 'not recorded')}"
+            ),
+            f"Rotation table SHA-256: {correction.get('table_entries_sha256', 'not recorded')}",
         ]
         rotation_objects = [
             item
@@ -253,7 +293,8 @@ class TploPlanReportRenderer:
 
         additional = snapshot.get("additional_measurements") or []
         y = top + 42 * (len(rows) + 1)
-        for item in additional[:4]:
+        available_rows = max(0, (PAGE_SIZE[1] - y - 80) // 34)
+        for item in additional[: min(4, available_rows)]:
             cls._text(
                 draw,
                 (64, y),

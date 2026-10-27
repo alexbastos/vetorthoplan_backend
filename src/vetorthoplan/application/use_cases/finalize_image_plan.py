@@ -310,12 +310,25 @@ def _validate_finalization(document: dict[str, Any]) -> None:
     required_measurements = validation.get("required_measurements")
     if not isinstance(required_measurements, list) or not required_measurements:
         raise ClinicalValidationError("Informe as medidas obrigatórias antes da finalização")
+    if "TPA" not in required_measurements:
+        raise ClinicalValidationError("TPA precisa constar entre as medidas obrigatórias da finalização")
+    has_blade = isinstance(tplo.get("blade_diameter_mm"), (int, float))
+    if has_blade and "TPLO_CORRECTION" not in required_measurements:
+        raise ClinicalValidationError(
+            "TPLO_CORRECTION precisa constar entre as medidas obrigatórias quando houver lâmina selecionada"
+        )
     available = {
         "TPA": measurement.get("tpa_degrees") is not None
         and measurement.get("acceptance") == "PASS",
         "PLATEAU_AXIS": measurement.get("plateau_length_mm") is not None,
         "TIBIAL_AXIS": measurement.get("tibial_axis_length_mm") is not None,
     }
+    correction = document.get("tplo_correction")
+    available["TPLO_CORRECTION"] = (
+        isinstance(correction, dict)
+        and correction.get("status") == "CALCULATED"
+        and correction.get("acceptance") == "PASS"
+    )
     for item in document.get("additional_measurements", []):
         if isinstance(item, dict) and isinstance(item.get("id"), str):
             available[item["id"]] = item.get("acceptance") == "PASS"

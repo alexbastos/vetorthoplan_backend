@@ -325,3 +325,35 @@ class TploRotationTableModel(Base):
     entries_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ImplantCatalogImportModel(Base):
+    __tablename__ = "implant_catalog_imports"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('AWAITING_SOURCE', 'WAITING_FOR_CONVERTER', 'QUEUED', 'PROCESSING', "
+            "'REVIEW_REQUIRED', 'APPROVED', 'REJECTED', 'FAILED')",
+            name="ck_implant_catalog_imports_status",
+        ),
+        Index("ix_implant_catalog_imports_status_created", "status", "created_at"),
+        Index("ix_implant_catalog_imports_tenant_created", "tenant_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    tenant_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source_object_key: Mapped[str | None] = mapped_column(String(1024), nullable=True, unique=True)
+    source_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    svg_object_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    preview_object_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    conversion_metadata: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    converter_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reviewed_by: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)

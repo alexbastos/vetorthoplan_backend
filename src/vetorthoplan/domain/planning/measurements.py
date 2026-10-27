@@ -6,6 +6,7 @@ import math
 from typing import Any
 
 from vetorthoplan.domain.planning.clinical_protocol import TploClinicalProtocol
+from vetorthoplan.domain.planning.rotation_table import TploRotationTable, matches_numeric_filter
 
 
 def derive_plan_measurements(
@@ -14,6 +15,7 @@ def derive_plan_measurements(
     width_px: int | None,
     height_px: int | None,
     clinical_protocol: TploClinicalProtocol | None = None,
+    rotation_table: TploRotationTable | None = None,
 ) -> dict[str, Any]:
     """Calculate displayable measurements from normalized source geometry.
 
@@ -171,7 +173,81 @@ def derive_plan_measurements(
         result,
         clinical_protocol=clinical_protocol,
     )
+    if result.get("tplo") is not None or result.get("tplo_landmarks") is not None:
+        result["tplo_correction"] = derive_tplo_correction(result, rotation_table=rotation_table)
+    else:
+        result.pop("tplo_correction", None)
 
+    return result
+
+
+def derive_tplo_correction(
+    document: dict[str, Any], *, rotation_table: TploRotationTable | None
+) -> dict[str, Any]:
+    """Resolve only an exact, versioned rotation-table entry; never interpolate."""
+    metadata = document.get("tplo") or {}
+    measurement = document.get("tplo_measurement") or {}
+    tpa = measurement.get("tpa_degrees")
+    blade_diameter = metadata.get("blade_diameter_mm")
+    result: dict[str, Any] = {
+        "status": "LANDMARKS_REQUIRED",
+        "preoperative_tpa_degrees": tpa,
+        "current_slope_degrees": metadata.get("current_slope_degrees"),
+        "target_slope_degrees": metadata.get("target_slope_degrees"),
+        "blade_diameter_mm": blade_diameter,
+        "rotation_mm": None,
+        "table_version": rotation_table.version if rotation_table else None,
+        "table_source": rotation_table.source if rotation_table else None,
+        "table_entries_sha256": rotation_table.entries_sha256 if rotation_table else None,
+        "acceptance": "NOT_ASSESSED",
+        "clinically_validated": False,
+    }
+    if tpa is None:
+        return result
+    if blade_diameter is None:
+        result["status"] = "BLADE_DIAMETER_REQUIRED"
+        return result
+    if rotation_table is None:
+        result["status"] = "ROTATION_TABLE_NOT_CONFIGURED"
+        return result
+
+    result["target_slope_degrees"] = (
+        result["target_slope_degrees"]
+        if result["target_slope_degrees"] is not None
+        else rotation_table.target_slope_degrees
+    )
+    if (
+        metadata.get("target_slope_degrees") is not None
+        and rotation_table.target_slope_degrees is not None
+        and not math.isclose(
+            float(metadata["target_slope_degrees"]),
+            rotation_table.target_slope_degrees,
+            abs_tol=1e-9,
+        )
+    ):
+        result["status"] = "TARGET_SLOPE_MISMATCH"
+        return result
+    if result["target_slope_degrees"] is None:
+        result["status"] = "TARGET_SLOPE_REQUIRED"
+        return result
+    entry = next(
+        (
+            row
+            for row in rotation_table.entries
+            if matches_numeric_filter(row.get("tpa_degrees"), tpa)
+            and matches_numeric_filter(row.get("blade_diameter_mm"), blade_diameter)
+        ),
+        None,
+    )
+    if entry is None:
+        result["status"] = "EXACT_TABLE_MATCH_REQUIRED"
+        return result
+
+    result.update(
+        status="CALCULATED",
+        rotation_mm=float(entry["rotation_mm"]),
+        acceptance="PASS",
+    )
     return result
 
 

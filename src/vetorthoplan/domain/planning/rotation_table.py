@@ -25,8 +25,9 @@ def parse_rotation_table(
     version: str | None,
     source: str | None,
     raw_entries: str | None,
+    target_slope_degrees: float | None = None,
 ) -> TploRotationTable | None:
-    values = (version, source, raw_entries)
+    values = (version, source, raw_entries, target_slope_degrees)
     if not any(value is not None and value.strip() for value in values):
         return None
     if any(value is None or not value.strip() for value in values):
@@ -71,6 +72,7 @@ def parse_rotation_table(
         version=version,
         source=source,
         entries=payload,
+        target_slope_degrees=target_slope_degrees,
         entries_sha256=entries_sha256,
     )
 

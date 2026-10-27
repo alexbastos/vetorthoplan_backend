@@ -33,9 +33,9 @@ Documento de acompanhamento do recorte inicial do VetOrthoPlan. Estados:
 
 | Funcionalidade | Estado | Observação |
 |---|---|---|
-| Checklist de validação clínica e estados de revisão | Parcial | Estados e pré-condições de aprovação implementados. |
+| Checklist de validação clínica e estados de revisão | Concluído no backend | `PUT` preserva o plano completo e `POST /images/{image_id}/plan/review` executa as transições `READY_FOR_REVIEW`/`APPROVED`/`REJECTED` sem aceitar alteração de geometria na decisão. Homologação clínica permanece pendente. |
 | Registro de marcos anatômicos do TPA | Concluído | Método explícito e versionado. |
-| Cálculo geométrico do TPA | Parcial | Método `MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1`; resultado ainda não homologado. |
+| Cálculo geométrico do TPA | Parcial | Método `MEDIAL_CONDYLE_CRANIAL_CRUCIATE_FULL_AXIS_V1`; comparação por tolerância configurada e retorno na API. Homologação clínica com casos de referência continua pendente. |
 | Checklist de qualidade da radiografia | Parcial | Campos persistidos no plano e regra de elegibilidade implementados; critérios devem ser confirmados com o parceiro clínico. |
 | Tolerâncias de erro e critérios de aceitação | Parcial | Comparação versionada por erro absoluto implementada; limites e referência precisam de protocolo homologado pelo parceiro. |
 | Auditoria de revisão e aprovação clínica | Parcial | Registra ator, data, decisão, método de medida, calibração e versão técnica; versão clínica precisa de homologação. |
@@ -46,12 +46,12 @@ Documento de acompanhamento do recorte inicial do VetOrthoPlan. Estados:
 
 | Funcionalidade | Estado | Observação |
 |---|---|---|
-| Parâmetros clínicos de rotação e alvo de slope | Parcial | Endpoint e persistência da tabela existem; falta integrar os controles no frontend e homologar valores e regras com o parceiro clínico. |
+| Parâmetros clínicos de rotação e alvo de slope | Parcial | O backend aplica correspondência exata da tabela versionada no `PUT`/`GET` do plano e devolve rotação, alvo, versão e hash. Não interpola. Alvos/regras e uso clínico ainda precisam de homologação. |
 | Máscara editável e transformação visual do fragmento no frontend | Parcial | Backend persiste contorno e transformação; integração visual pendente. |
-| Implantes e catálogo versionado | Pendente | Assets, regras de escala, compatibilidade por diâmetro e origem dos arquivos ainda precisam de contrato. |
+| Importação DWG e catálogo versionado de desenhos | Parcial | Backend preserva original, calcula SHA-256, controla versão/revisão e aceita derivados SVG/PNG de wrapper ODA. Conversor licenciado ainda não configurado; arquivos aguardam conversão. Não representa molde 3D nem certifica compatibilidade clínica. |
 | Moldes digitais de próteses/implantes | Pendente | Não são necessários para concluir a etapa de medição TPLO; entram depois do contrato do catálogo e antes da simulação final de posicionamento do implante. |
-| Finalização imutável e checklist de completude | Parcial | Backend cria snapshot imutável e bloqueia edições; falta integrar a ação no frontend. |
-| Relatório PNG/PDF versionado | Parcial | PNG e PDF gerados e armazenados por versão; fluxo de download no frontend pendente. |
+| Finalização imutável e checklist de completude | Concluído no backend | `POST /images/{image_id}/plan/finalize` cria o snapshot imutável, bloqueia edições posteriores e exige TPA aceito e correção tabelada quando uma lâmina é selecionada. |
+| Relatório PNG/PDF versionado | Concluído no backend | Gera PNG/PDF `TPLO_FINAL_REPORT_V2`, registra hashes, snapshot, correção, tabela/hash, auditoria e emite links temporários; o frontend apenas consome o contrato. |
 
 ## Próximas funcionalidades a implementar
 
@@ -61,15 +61,16 @@ Documento de acompanhamento do recorte inicial do VetOrthoPlan. Estados:
 4. Integrar a finalização imutável e o download dos relatórios PNG/PDF.
 5. Executar contrato consumidor-produtor autenticado entre frontend/BFF e backend, incluindo conflitos de revisão, `401/403`, imagem não elegível e plano já finalizado.
 6. Homologar com o parceiro veterinário: posicionamento radiográfico, marcos anatômicos, método do TPA, tolerâncias, slope-alvo e tabela de rotação.
-7. Definir catálogo versionado de implantes e só então importar os moldes digitais das próteses/implantes.
+7. Obter licença ODA, instalar o wrapper de conversão e integrar a interface administrativa ao fluxo DWG → revisão manual.
+8. Definir contrato separado para moldes 3D e só então importar geometria de próteses/implantes para simulação.
 
 ## Quando os moldes serão necessários
 
 Os moldes não são pré-requisito para o fluxo atual de planejamento geométrico TPLO. O backend já calcula e persiste calibração, marcos, TPA, medidas adicionais, parâmetros de correção, tabela de rotação, simulação geométrica e snapshot final.
 
-Os arquivos dos moldes passam a ser necessários na funcionalidade de catálogo e simulação de implante, quando o frontend precisar mostrar o implante escolhido sobre a osteotomia e verificar escala, orientação, compatibilidade e posicionamento. Antes de receber arquivos, o contrato precisa definir: formato (`STL`, `OBJ` ou outro), unidade, sistema de coordenadas, lateridade, versão, diâmetro compatível, origem/licença, checksum e regras de visualização. O backend deve validar metadados e checksum; o frontend deve carregar o molde somente depois de selecionar um item versionado do catálogo.
+Os DWGs New Vet podem alimentar o catálogo de desenhos 2D após conversão ODA e revisão, mas não fornecem por si só molde 3D para sobrepor à osteotomia. A simulação com geometria 3D requer contrato separado que defina formato (`STL`, `OBJ` ou outro), unidade, sistema de coordenadas, lateridade, versão, compatibilidade, origem/licença, checksum e regras de visualização.
 
-Ordem recomendada: homologar medidas e correção; integrar a simulação sem molde; definir catálogo e contrato de assets; receber um conjunto pequeno de moldes oficiais; validar escala e orientação com o parceiro; ampliar o catálogo.
+Ordem recomendada: homologar medidas e correção; integrar a simulação sem molde; instalar o conversor ODA licenciado e revisar desenhos 2D; definir catálogo/contrato 3D; receber um conjunto pequeno de moldes oficiais; validar escala e orientação com o parceiro; ampliar o catálogo.
 
 ### Checklist de qualidade radiográfica implementado
 
@@ -109,6 +110,10 @@ combinações exatas (TPA de 10 a 45 graus; lâminas de 8 a 33 mm). `tpa_degrees
 recomendação automática. Uma tabela homologada posterior pode substituir a ativa pelas variáveis
 `TPLO_ROTATION_TABLE_VERSION`, `TPLO_ROTATION_TABLE_SOURCE` e `TPLO_ROTATION_TABLE_JSON`, preenchidas
 em conjunto e validadas na inicialização.
+
+Ao salvar o plano, `tplo.blade_diameter_mm` seleciona a linha da tabela usando o TPA geométrico calculado. O backend grava em `tplo_correction` o alvo de slope, rotação em mm, versão, fonte e hash da tabela. A busca exige correspondência numérica exata de TPA e diâmetro; ausência de linha, falta de alvo ou conflito entre o alvo informado e o alvo da tabela deixa a correção sem aceitação. Para tabelas configuradas por ambiente, `TPLO_ROTATION_TABLE_TARGET_SLOPE_DEGREES` declara o alvo associado à tabela; também pode ser informado em `tplo.target_slope_degrees`. `TPLO_CORRECTION` pode ser marcada como medida obrigatória para aprovação quando houver lâmina selecionada.
+
+O alvo/rotação retornados são referência tabelada para revisão manual. `clinically_validated` permanece falso; a existência da tabela e a comparação computacional não substituem homologação clínica.
 
 ### Finalização imutável e relatórios
 

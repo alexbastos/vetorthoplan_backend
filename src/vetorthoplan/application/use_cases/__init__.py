@@ -22,6 +22,8 @@ from vetorthoplan.application.use_cases.get_ingestion_job import GetIngestionJob
 from vetorthoplan.application.use_cases.image_plans import (
     GetImagePlan,
     ImagePlanView,
+    ReviewImagePlan,
+    ReviewImagePlanCommand,
     SaveImagePlan,
 )
 from vetorthoplan.application.use_cases.list_cases import ListCases, ListCasesQuery
@@ -57,6 +59,8 @@ __all__ = [
     "ListCasesQuery",
     "GetImagePlan",
     "ImagePlanView",
+    "ReviewImagePlan",
+    "ReviewImagePlanCommand",
     "SaveImagePlan",
     "ProcessedImageIngestion",
     "ProcessNextImageIngestion",

@@ -42,7 +42,12 @@ class Settings(BaseSettings):
     tplo_rotation_table_version: str | None = Field(default=None, min_length=1, max_length=100)
     tplo_rotation_table_source: str | None = Field(default=None, min_length=1, max_length=300)
     tplo_rotation_table_json: str | None = None
+    tplo_rotation_table_target_slope_degrees: float | None = Field(default=None, gt=0, lt=90)
     tplo_clinical_protocol_json: str | None = None
+    implant_catalog_admin_token: str | None = Field(default=None, min_length=32)
+    oda_conversion_service_url: str | None = None
+    oda_conversion_service_token: str | None = None
+    oda_conversion_timeout_seconds: float = Field(default=120, gt=0, le=600)
 
     @model_validator(mode="after")
     def reject_local_identity_outside_safe_environments(self) -> "Settings":
@@ -55,6 +60,7 @@ class Settings(BaseSettings):
                 self.tplo_rotation_table_version,
                 self.tplo_rotation_table_source,
                 self.tplo_rotation_table_json,
+                self.tplo_rotation_table_target_slope_degrees,
             )
         except (ValueError, TypeError) as exc:
             raise ValueError("Configuração da tabela TPLO inválida") from exc
@@ -73,6 +79,11 @@ class Settings(BaseSettings):
                 raise ValueError("JWKS_URL não pode ser vazio.")
             if not self.jwks_url.startswith("https://") and self.app_env not in {"local", "test"}:
                 raise ValueError("JWKS_URL deve usar HTTPS fora dos ambientes local e test.")
+        if self.oda_conversion_service_url and self.app_env not in {"local", "test"}:
+            if not self.oda_conversion_service_url.startswith("https://"):
+                raise ValueError(
+                    "ODA_CONVERSION_SERVICE_URL deve usar HTTPS fora dos ambientes local e test."
+                )
         return self
 
 

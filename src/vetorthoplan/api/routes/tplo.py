@@ -36,6 +36,7 @@ async def get_tplo_rotation_table(
         settings.tplo_rotation_table_version,
         settings.tplo_rotation_table_source,
         settings.tplo_rotation_table_json,
+        settings.tplo_rotation_table_target_slope_degrees,
     )
     if table is None:
         table = await repository.get_active()
@@ -85,6 +86,7 @@ async def get_tplo_clinical_protocol(
         configured=True,
         protocol_version=protocol.version,
         source=protocol.source,
+        tpa_max_absolute_error_degrees=protocol.tpa_max_absolute_error_degrees,
         measurements=[measurement.model_dump(mode="json") for measurement in protocol.measurements],
         acceptance_enabled=protocol.tpa_max_absolute_error_degrees is not None or bool(protocol.measurements),
     )

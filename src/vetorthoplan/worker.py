@@ -14,6 +14,7 @@ from vetorthoplan.infrastructure.database.ingestion_job_queue import (
     SqlAlchemyIngestionJobQueue,
 )
 from vetorthoplan.infrastructure.image_content import BasicImageContentInspector
+from vetorthoplan.infrastructure.oda_conversion import process_next_oda_conversion
 from vetorthoplan.infrastructure.storage import S3PresignedPostStorage
 
 logger = logging.getLogger("vetorthoplan.worker")
@@ -27,6 +28,7 @@ async def run_worker(*, once: bool) -> None:
         bucket=settings.storage_bucket,
         region=settings.storage_region,
         endpoint_url=settings.storage_endpoint_url,
+        presign_endpoint_url=settings.storage_public_endpoint_url,
         expires_in_seconds=settings.upload_url_expires_seconds,
     )
     try:
@@ -40,13 +42,20 @@ async def run_worker(*, once: bool) -> None:
                     clock=SystemClock(),
                 )
                 result = await use_case.execute()
+                catalog_processed = False
+                if result is None:
+                    catalog_processed = await process_next_oda_conversion(
+                        session, settings=settings, storage=storage
+                    )
                 await session.commit()
 
             if result is not None:
                 logger.info("Job %s finalizado com status %s", result.job.id, result.job.status)
+            elif catalog_processed:
+                logger.info("Job de conversão de prótese processado")
             if once:
                 return
-            if result is None:
+            if result is None and not catalog_processed:
                 await asyncio.sleep(settings.worker_poll_seconds)
     finally:
         await engine.dispose()
