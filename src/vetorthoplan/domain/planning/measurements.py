@@ -24,6 +24,7 @@ def derive_plan_measurements(
     """
     result = json.loads(json.dumps(document))
     result.pop("clinical_protocol_version", None)
+    _derive_image_transform(result, width_px=width_px, height_px=height_px)
     _derive_additional_measurements(
         result,
         width_px=width_px,
@@ -70,7 +71,10 @@ def derive_plan_measurements(
         kind = item["type"]
         if kind == "IMPLANT":
             if not width_px or not height_px:
-                item["transform"] = {"status": "IMAGE_DIMENSIONS_REQUIRED", "coordinate_space": "IMAGE_PIXELS"}
+                item["transform"] = {
+                    "status": "IMAGE_DIMENSIONS_REQUIRED",
+                    "coordinate_space": "IMAGE_PIXELS",
+                }
             else:
                 item["transform"] = _implant_transform(
                     item, width_px=width_px, height_px=height_px
@@ -188,6 +192,54 @@ def derive_plan_measurements(
         result.pop("tplo_correction", None)
 
     return result
+
+
+def _derive_image_transform(
+    document: dict[str, Any], *, width_px: int | None, height_px: int | None
+) -> None:
+    transform = document.get("image_transform")
+    if not isinstance(transform, dict):
+        transform = {}
+        document["image_transform"] = transform
+    transform.pop("result", None)
+    if not width_px or not height_px:
+        transform["result"] = {"status": "IMAGE_DIMENSIONS_REQUIRED"}
+        return
+
+    crop = transform.get("crop")
+    if isinstance(crop, dict):
+        left = round(float(crop["x"]) * width_px)
+        top = round(float(crop["y"]) * height_px)
+        right = round((float(crop["x"]) + float(crop["width"])) * width_px)
+        bottom = round((float(crop["y"]) + float(crop["height"])) * height_px)
+    else:
+        left, top, right, bottom = 0, 0, width_px, height_px
+    right = min(width_px, max(left + 1, right))
+    bottom = min(height_px, max(top + 1, bottom))
+    crop_width, crop_height = right - left, bottom - top
+
+    angle = math.radians(float(transform.get("rotation_degrees", 0)))
+    cosine, sine = math.cos(angle), math.sin(angle)
+    output_width = max(1, math.ceil(abs(crop_width * cosine) + abs(crop_height * sine)))
+    output_height = max(1, math.ceil(abs(crop_height * cosine) + abs(crop_width * sine)))
+    matrix = [
+        [
+            cosine,
+            sine,
+            output_width / 2 - cosine * (left + crop_width / 2) - sine * (top + crop_height / 2),
+        ],
+        [
+            -sine,
+            cosine,
+            output_height / 2 + sine * (left + crop_width / 2) - cosine * (top + crop_height / 2),
+        ],
+    ]
+    transform["result"] = {
+        "status": "CALCULATED",
+        "crop_box_px": [left, top, right, bottom],
+        "output_size_px": [output_width, output_height],
+        "affine_matrix": matrix,
+    }
 
 
 def derive_tplo_correction(
@@ -383,16 +435,32 @@ def _simulate_fragment(
     radians = math.radians(item["rotation_degrees"])
     cosine, sine = math.cos(radians), math.sin(radians)
     cx, cy = center_px["x"], center_px["y"]
+    affine_matrix = [
+        [cosine, -sine, cx - cosine * cx + sine * cy],
+        [sine, cosine, cy - sine * cx - cosine * cy],
+    ]
+    transformed_points = []
+    for point in item["fragment"]["points"]:
+        source_x = point["x"] * width_px
+        source_y = point["y"] * height_px
+        transformed_points.append(
+            {
+                "x": affine_matrix[0][0] * source_x
+                + affine_matrix[0][1] * source_y
+                + affine_matrix[0][2],
+                "y": affine_matrix[1][0] * source_x
+                + affine_matrix[1][1] * source_y
+                + affine_matrix[1][2],
+            }
+        )
     return {
         "status": "SIMULATED",
         "calibration_id": calibration_id,
         "center_px": center_px,
         "radius_mm": radius_mm,
         "rotation_degrees": item["rotation_degrees"],
-        "affine_matrix": [
-            [cosine, -sine, cx - cosine * cx + sine * cy],
-            [sine, cosine, cy - sine * cx - cosine * cy],
-        ],
+        "affine_matrix": affine_matrix,
+        "transformed_fragment_points_px": transformed_points,
     }
 
 

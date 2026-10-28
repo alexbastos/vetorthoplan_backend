@@ -1,12 +1,14 @@
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vetorthoplan.api.dependencies import (
     FinalizeImagePlanDependency,
     GetFinalizedImagePlanDependency,
+    GetImageDependency,
     GetImagePlanDependency,
     ReviewImagePlanDependency,
     SaveImagePlanDependency,
@@ -26,8 +28,12 @@ from vetorthoplan.api.schemas import (
 )
 from vetorthoplan.application.use_cases.finalize_image_plan import FinalizedPlanView
 from vetorthoplan.application.use_cases.image_plans import ReviewImagePlanCommand
+from vetorthoplan.config.settings import Settings, get_settings
+from vetorthoplan.domain.imaging import ImageUploadStatus
 from vetorthoplan.infrastructure.database.models import ImplantCatalogImportModel
 from vetorthoplan.infrastructure.database.session import get_database_session
+from vetorthoplan.infrastructure.plan_image_exporter import PlanImageExporter
+from vetorthoplan.infrastructure.storage import S3PresignedPostStorage
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(get_tenant_context)])
 
@@ -45,6 +51,94 @@ async def get_image_plan(
 ) -> ImagePlanResponse:
     plan = await use_case.execute(image_id, context)
     return ImagePlanResponse(**{field: getattr(plan, field) for field in ImagePlanResponse.model_fields})
+
+
+@router.post(
+    "/images/{image_id}/plan/export",
+    response_class=Response,
+    tags=["Planning"],
+    summary="Exportar radiografia com ROI, rotação e próteses compostas",
+    responses={
+        200: {
+            "description": "Imagem PNG composta para download.",
+            "content": {"image/png": {}},
+        },
+        404: {"model": ErrorResponse, "description": "Imagem ou ativo de prótese não encontrado"},
+        409: {"model": ErrorResponse, "description": "Prévia da imagem indisponível"},
+        422: {"model": ErrorResponse, "description": "Ativo de prótese não renderizável"},
+    },
+)
+async def export_image_plan(
+    image_id: UUID,
+    context: TenantContextDependency,
+    image_reader: GetImageDependency,
+    plan_reader: GetImagePlanDependency,
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> Response:
+    image = await image_reader.execute(image_id, context)
+    if (
+        image.status != ImageUploadStatus.READY
+        or image.preview_object_key is None
+        or image.preview_width_px is None
+        or image.preview_height_px is None
+        or image.width_px is None
+        or image.height_px is None
+    ):
+        raise HTTPException(status_code=409, detail={"code": "IMAGE_PREVIEW_UNAVAILABLE"})
+
+    plan = await plan_reader.execute(image_id, context)
+    document = plan.document
+    implant_objects = [
+        item for item in document.get("objects", [])
+        if isinstance(item, dict) and item.get("type") == "IMPLANT" and item.get("visible", True)
+    ]
+    implant_ids = {UUID(str(item["catalog_item_id"])) for item in implant_objects}
+    catalog_rows: dict[UUID, ImplantCatalogImportModel] = {}
+    if implant_ids:
+        rows = await session.scalars(
+            select(ImplantCatalogImportModel).where(
+                ImplantCatalogImportModel.id.in_(implant_ids),
+                ImplantCatalogImportModel.tenant_id == context.tenant_id,
+                ImplantCatalogImportModel.status == "APPROVED",
+            )
+        )
+        catalog_rows = {row.id: row for row in rows}
+        if set(catalog_rows) != implant_ids:
+            raise HTTPException(status_code=404, detail={"code": "IMPLANT_NOT_AVAILABLE"})
+        if any(row.preview_object_key is None for row in catalog_rows.values()):
+            raise HTTPException(status_code=422, detail={"code": "IMPLANT_PREVIEW_UNAVAILABLE"})
+
+    storage = S3PresignedPostStorage(
+        bucket=settings.storage_bucket,
+        region=settings.storage_region,
+        endpoint_url=settings.storage_endpoint_url,
+        presign_endpoint_url=settings.storage_public_endpoint_url,
+        expires_in_seconds=settings.preview_url_expires_seconds,
+    )
+    preview_png = await storage.read_object(image.preview_object_key)
+    implant_previews = {
+        str(item_id): await storage.read_object(row.preview_object_key)
+        for item_id, row in catalog_rows.items()
+        if row.preview_object_key is not None
+    }
+    try:
+        png = PlanImageExporter().render_png(
+            preview_png=preview_png,
+            document=document,
+            implant_previews=implant_previews,
+            image_dimensions_px=(image.width_px, image.height_px),
+        )
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "PLAN_RASTER_EXPORT_FAILED"},
+        ) from exc
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Content-Disposition": f'attachment; filename="plan-{image_id}.png"'},
+    )
 
 
 @router.post(
@@ -97,7 +191,7 @@ async def save_image_plan(
     payload: SaveImagePlanRequest,
     context: TenantContextDependency,
     use_case: SaveImagePlanDependency,
-    session: AsyncSession = Depends(get_database_session),
+    session: Annotated[AsyncSession, Depends(get_database_session)],
 ) -> ImagePlanResponse:
     implants = [item for item in payload.document.objects if item.type == "IMPLANT"]
     implant_ids = {item.catalog_item_id for item in implants}
@@ -115,7 +209,10 @@ async def save_image_plan(
         if set(catalog_items) != implant_ids:
             raise HTTPException(
                 status_code=422,
-                detail={"code": "IMPLANT_NOT_AVAILABLE", "message": "O implante não está aprovado ou não pertence à organização."},
+                detail={
+                    "code": "IMPLANT_NOT_AVAILABLE",
+                    "message": "O implante não está aprovado ou não pertence à organização.",
+                },
             )
         for implant in implants:
             metadata = catalog_items[implant.catalog_item_id].metadata_json

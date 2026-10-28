@@ -23,7 +23,13 @@ Imagem inexistente ou fora do tenant retorna `404 IMAGE_NOT_FOUND`. Imagem ainda
 
 `PUT /api/v1/images/{image_id}/plan`
 
-Envie a revisão lida em `base_revision` junto com o documento completo. Coordenadas `x` e `y` são normalizadas entre `0` e `1`; `x=0` é a borda esquerda e `y=0` a borda superior. Os pontos se referem à matriz da imagem original, orientada para exibição, e não às dimensões reduzidas da prévia. O documento aceita até 500 objetos (`LINE`, `ANGLE`, `CIRCLE` ou `TPLO`) e calibração opcional por linha ou círculo de referência.
+Envie a revisão lida em `base_revision` junto com o documento completo. Coordenadas `x` e `y` são normalizadas entre `0` e `1`; `x=0` é a borda esquerda e `y=0` a borda superior. Os pontos se referem à matriz da imagem original, orientada para exibição, e não às dimensões reduzidas da prévia. O documento aceita até 500 objetos (`LINE`, `ANGLE`, `CIRCLE`, `TPLO` ou `IMPLANT`) e calibração opcional por linha ou círculo de referência.
+
+`document.viewport` persiste o estado de apresentação para reabrir o editor: `zoom` entre `0.1` e `20`, `pan_x` e `pan_y` entre `-10` e `10`. O frontend aplica esse estado ao canvas; as coordenadas das ferramentas continuam relativas à imagem original e as medidas não são alteradas pelo zoom/pan. Cada objeto aceita `visible` (padrão `true`) e `locked` (padrão `false`). Objetos bloqueados não podem ter geometria editada ou ser removidos. Para editar, grave primeiro uma revisão que apenas desbloqueie o objeto; depois envie a alteração em outra revisão. Seleção de ferramenta/objeto permanece estado transitório da interface.
+
+`document.image_transform` guarda uma `crop` retangular normalizada (`x`, `y`, `width`, `height`) e `rotation_degrees` global anti-horária. A API calcula `result.crop_box_px`, `result.output_size_px` e a matriz afim 2×3 que mapeia pixels da imagem original para a imagem transformada. Recorte e rotação são não destrutivos: o original e as coordenadas clínicas continuam no quadro original.
+
+`POST /api/v1/images/{image_id}/plan/export` retorna `image/png` para download. O servidor aplica a ROI e a rotação ao PNG de prévia e compõe os ativos de prévia dos implantes aprovados do tenant, além das anotações visíveis. Esse arquivo é uma exportação derivada; o original não é sobrescrito.
 
 ```json
 {
@@ -117,7 +123,7 @@ Ao salvar, o backend preserva pontos normalizados e recalcula os resultados deri
 - Medidas em mm incluem o mesmo `calibration_id` do resultado da calibração. Ele é um fingerprint da referência manual e dimensões da imagem. Alterar referência ou imagem muda o ID e recalcula as medidas.
 - Se uma geometria linear, circular ou TPLO ainda não tiver calibração válida, a resposta usa `measurement.status: "CALIBRATION_REQUIRED"` sem valores em mm. Se faltarem dimensões da imagem, usa `IMAGE_DIMENSIONS_REQUIRED`. O ângulo pode ser calculado sem calibração.
 - O PixelSpacing e o ImagerPixelSpacing DICOM não são usados na fórmula.
-- A simulação TPLO recebe `fragment.points` como contorno fechado (mínimo 3 pontos normalizados), junto ao centro, borda do raio e rotação do objeto `TPLO`. O backend devolve `simulation.status`, `center_px`, `radius_mm`, `rotation_degrees` e uma matriz afim 2×3 em coordenadas da imagem original. A matriz aplica rotação ao redor do centro; ângulo positivo é horário na tela (eixo Y da imagem cresce para baixo).
+- A simulação TPLO recebe `fragment.points` como contorno fechado (mínimo 3 pontos normalizados), junto ao centro, borda do raio e rotação do objeto `TPLO`. O backend devolve `simulation.status`, `center_px`, `radius_mm`, `rotation_degrees`, uma matriz afim 2×3 e `transformed_fragment_points_px` com o contorno após rotação, em pixels da imagem original. A matriz aplica rotação ao redor do centro; ângulo positivo é horário na tela (eixo Y da imagem cresce para baixo).
 - `simulation.status` pode ser `SIMULATED`, `FRAGMENT_REQUIRED`, `CALIBRATION_REQUIRED` ou `IMAGE_DIMENSIONS_REQUIRED`. A prévia geométrica não calcula objetivo cirúrgico, TPA alvo, deslocamento de corda nem recomendação de rotação.
 - A geometria de simulação também inclui `calibration_id`; mudança na escala implica novo cálculo ao salvar o plano.
 

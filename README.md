@@ -1,6 +1,8 @@
 # VetOrthoPlan Backend
 
-Backend clínico do VetOrthoPlan, com os vertical slices de casos, upload e processamento inicial de radiografias.
+Backend clínico do VetOrthoPlan. O projeto implementa casos clínicos, upload e ingestão de radiografias, planos geométricos TPLO, calibração, medições, simulação de osteotomia, catálogo de implantes, revisão clínica, finalização e exportação de imagens anotadas.
+
+O branch de desenvolvimento atual é `protese`. O código local inclui o contrato de edição de imagens e o endpoint de exportação raster; a publicação em AWS deve ser feita apontando o Terraform para o commit desejado.
 
 ## Stack
 
@@ -10,6 +12,7 @@ Backend clínico do VetOrthoPlan, com os vertical slices de casos, upload e proc
 - PostgreSQL
 - Alembic
 - pytest
+- Pillow para prévias e exportações PNG
 
 O projeto não usa Prisma porque a arquitetura aprovada é Python. O schema do PostgreSQL é definido por modelos SQLAlchemy e migrations Alembic, que podem ser criados e revisados sem acesso a um banco remoto.
 
@@ -29,7 +32,13 @@ Documentação da API:
 - OpenAPI JSON: <http://localhost:8000/openapi.json>
 - ReDoc: <http://localhost:8000/redoc>
 
-Os arquivos locais `openapi/openapi.json` e `docs/openapi.json` representam o código desta branch (`0.9.0`). O servidor `cecia.ufsj.edu.br` ainda publica `0.8.0`; as mudanças locais não foram implantadas.
+Os arquivos locais `openapi/openapi.json` e `docs/openapi.json` são gerados a partir do código desta branch (`0.9.0`). Eles devem ser regenerados depois de alterações nos schemas ou nas rotas:
+
+```bash
+.venv/bin/python scripts/export_openapi.py
+```
+
+O Swagger local está em `/docs`, o JSON em `/openapi.json` e o ReDoc em `/redoc`. A infraestrutura AWS é gerenciada pelo repositório `vetorthoplan_terraform`; mantenha branch e commit de deploy alinhados antes de aplicar uma atualização.
 
 Referências de produto e frontend:
 
@@ -47,6 +56,9 @@ Referências de produto e frontend:
 - [Prancha de confirmação do upload](docs/frontend/confirmacao-upload-v1.png)
 - [Prancha de processamento da imagem](docs/frontend/processamento-imagem-v1.png)
 - [Índice visual dos endpoints e funcionalidades](docs/REFERENCIAS_VISUAIS_ENDPOINTS.md)
+- [Contrato do plano geométrico, edição e exportação](docs/PLANO_GEOMETRICO_API.md)
+- [Checklist de funcionalidades do backend](docs/BACKEND_FUNCIONALIDADES_CHECKLIST.md)
+- [Catálogo de implantes](docs/IMPLANT_CATALOG.md)
 - [Contrato de criação de caso 0.9.0](docs/CONTRATO_CRIACAO_CASO_0.9.0.md)
 - [Contrato de autenticação clínica — pendente](docs/CONTRATO_AUTENTICACAO_CLINICA.md)
 
@@ -157,6 +169,40 @@ O script verifica `IDENTITY_MODE=jwt`, a assinatura e os claims do token usando 
 - `GET /api/v1/cases` lista casos com busca, filtro e cursor;
 - `GET /api/v1/cases/{case_id}` consulta um caso do tenant ativo.
 
+## Plano geométrico, edição e implantes
+
+O plano é salvo como um documento versionado associado à imagem. As coordenadas clínicas são normalizadas entre `0` e `1` e permanecem relativas à imagem original. Cada `PUT` envia o documento completo com `base_revision`; conflitos retornam `409 PLAN_REVISION_CONFLICT`.
+
+O documento suporta:
+
+- calibração manual por linha ou círculo;
+- objetos `LINE`, `ANGLE`, `CIRCLE`, `TPLO` e `IMPLANT`;
+- medidas em milímetros e graus recalculadas pelo backend;
+- marcos anatômicos, TPA e medidas adicionais configuráveis;
+- zoom e pan persistidos em `viewport`;
+- `visible` e `locked` para os objetos do editor;
+- região de interesse e rotação global em `image_transform`;
+- matriz afim calculada para a imagem transformada;
+- fragmento TPLO, rotação e contorno transformado em pixels;
+- posicionamento, rotação, escala, opacidade, variante e vista de implantes aprovados.
+
+Endpoints principais:
+
+- `GET/PUT /api/v1/images/{image_id}/plan` consulta e salva o plano;
+- `POST /api/v1/images/{image_id}/plan/validate` executa a pré-validação técnica;
+- `POST /api/v1/images/{image_id}/plan/review` conduz a revisão clínica;
+- `POST /api/v1/images/{image_id}/plan/finalize` congela o plano e gera os relatórios;
+- `GET /api/v1/images/{image_id}/plan/finalization` consulta a finalização;
+- `POST /api/v1/images/{image_id}/plan/export` retorna um PNG composto com ROI, rotação, anotações visíveis e previews dos implantes aprovados.
+
+O endpoint de exportação não altera o arquivo original. Ele lê a prévia PNG privada da imagem, aplica o recorte e a rotação, desenha as geometrias visíveis e compõe os previews dos implantes aprovados do tenant. A interação do canvas, seleção e arraste dos objetos pertencem ao frontend.
+
+## Catálogo de implantes
+
+O catálogo preserva o arquivo original, calcula SHA-256 e aceita um conversor externo para produzir um ativo editável e um preview PNG. Apenas itens aprovados aparecem em `GET /api/v1/implant-catalog/items` e podem ser referenciados em um plano. Os ativos são entregues por URLs temporárias e o backend valida tenant, variante e vista antes de salvar o plano.
+
+Endpoints administrativos incluem abertura da importação, envio da origem, aprovação, rejeição e retry. Configure `IMPLANT_CATALOG_ADMIN_TOKEN` e o serviço conversor quando o fluxo de conversão estiver disponível. Consulte [docs/IMPLANT_CATALOG.md](docs/IMPLANT_CATALOG.md).
+
 ## Endpoint de upload
 
 - `POST /api/v1/cases/{case_id}/image-uploads` cria uma sessão `PENDING_UPLOAD` e devolve um formulário `POST` pré-assinado para envio direto ao object storage.
@@ -208,4 +254,4 @@ ruff check .
 
 ## Migrations
 
-As migrations versionadas estão em `migrations/versions/`, incluindo casos (`20260915_0001`), sessões (`20260917_0002`), confirmação (`20260917_0003`), fila durável (`20260917_0004`), estados de processamento (`20260918_0005`), prévias (`20260918_0006`), planos geométricos (`20260918_0007`), idempotência de casos (`20261016_0008`), origem da idade (`20261019_0009`), falha operacional da imagem (`20261019_0010`), idempotência de sessões (`20261019_0011`), cancelamento (`20261019_0012`) e mapeamento de usuários/organizações do provedor de identidade (`20261020_0013`). Aplique-as com `alembic upgrade head` no banco configurado.
+As migrations versionadas estão em `migrations/versions/`, incluindo casos, sessões e confirmação de upload, fila durável, estados de processamento, prévias, planos geométricos, idempotência, origem da idade, falhas e cancelamento de uploads, mapeamento de identidade, ingestão de imagens, nome de exibição, planos finalizados, tabela de rotação TPLO, importação do catálogo de implantes e ativos editáveis sem dependência de extensão. Aplique-as com `alembic upgrade head` no banco configurado.

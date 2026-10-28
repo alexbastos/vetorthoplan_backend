@@ -12,9 +12,9 @@
     },
     "version": "0.9.0",
     "x-git-branch": "protese",
-    "x-git-commit": "67cf7d1eb37c1e46409adafbed5636479349308f",
+    "x-git-commit": "6849bde32f94e3a55ec465933821d91bf75b7d9e",
     "x-git-working-tree-dirty": true,
-    "x-generated-at": "2026-10-28T12:44:08.546818+00:00"
+    "x-generated-at": "2026-10-28T20:34:32.334575+00:00"
   },
   "paths": {
     "/health/live": {
@@ -1690,6 +1690,70 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/images/{image_id}/plan/export": {
+      "post": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "Exportar radiografia com ROI, rotação e próteses compostas",
+        "operationId": "export_image_plan_api_v1_images__image_id__plan_export_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Imagem PNG composta para download.",
+            "content": {
+              "image/png": {}
+            }
+          },
+          "404": {
+            "description": "Imagem ou ativo de prótese não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Prévia da imagem indisponível",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ativo de prótese não renderizável",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3811,6 +3875,16 @@
             ],
             "title": "Label"
           },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
+          },
           "measurement": {
             "anyOf": [
               {
@@ -3892,6 +3966,16 @@
             ],
             "title": "Label"
           },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
+          },
           "measurement": {
             "anyOf": [
               {
@@ -3971,6 +4055,12 @@
             "const": 1,
             "title": "Schema Version",
             "default": 1
+          },
+          "viewport": {
+            "$ref": "#/components/schemas/PlanViewport"
+          },
+          "image_transform": {
+            "$ref": "#/components/schemas/PlanImageTransform"
           },
           "calibration": {
             "anyOf": [
@@ -4136,6 +4226,118 @@
         ],
         "title": "PlanFragment"
       },
+      "PlanImageRegion": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y"
+          },
+          "width": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Width"
+          },
+          "height": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "title": "PlanImageRegion"
+      },
+      "PlanImageTransform": {
+        "properties": {
+          "crop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanImageRegion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rotation_degrees": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Rotation Degrees",
+            "description": "Rotação global anti-horária, em graus, aplicada após o recorte.",
+            "default": 0
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanImageTransformResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Transformação da imagem recalculada pelo backend."
+          }
+        },
+        "type": "object",
+        "title": "PlanImageTransform"
+      },
+      "PlanImageTransformResult": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "CALCULATED",
+              "IMAGE_DIMENSIONS_REQUIRED"
+            ],
+            "title": "Status"
+          },
+          "crop_box_px": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Crop Box Px"
+          },
+          "output_size_px": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Output Size Px"
+          },
+          "affine_matrix": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Affine Matrix"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "PlanImageTransformResult"
+      },
       "PlanImplant": {
         "properties": {
           "id": {
@@ -4212,6 +4414,16 @@
               }
             ],
             "title": "Label"
+          },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
           },
           "transform": {
             "anyOf": [
@@ -4295,6 +4507,16 @@
               }
             ],
             "title": "Label"
+          },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
           },
           "measurement": {
             "anyOf": [
@@ -4455,6 +4677,16 @@
             ],
             "title": "Label"
           },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked",
+            "default": false
+          },
           "measurement": {
             "anyOf": [
               {
@@ -4564,6 +4796,17 @@
             },
             "type": "array",
             "title": "Affine Matrix"
+          },
+          "transformed_fragment_points_px": {
+            "items": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Transformed Fragment Points Px",
+            "description": "Contorno resultante após rotação, em pixels da imagem original."
           }
         },
         "type": "object",
@@ -4600,6 +4843,36 @@
           "message"
         ],
         "title": "PlanValidationIssueResponse"
+      },
+      "PlanViewport": {
+        "properties": {
+          "zoom": {
+            "type": "number",
+            "maximum": 20.0,
+            "minimum": 0.1,
+            "title": "Zoom",
+            "default": 1
+          },
+          "pan_x": {
+            "type": "number",
+            "maximum": 10.0,
+            "minimum": -10.0,
+            "title": "Pan X",
+            "description": "Deslocamento horizontal em larguras da imagem.",
+            "default": 0
+          },
+          "pan_y": {
+            "type": "number",
+            "maximum": 10.0,
+            "minimum": -10.0,
+            "title": "Pan Y",
+            "description": "Deslocamento vertical em alturas da imagem.",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "PlanViewport",
+        "description": "Presentation state for reopening the editor; geometry remains image-relative."
       },
       "PresignedPostResponse": {
         "properties": {

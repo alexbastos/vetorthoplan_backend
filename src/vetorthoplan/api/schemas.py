@@ -350,6 +350,10 @@ class PlanTploSimulation(BaseModel):
     radius_mm: float | None = Field(default=None, gt=0)
     rotation_degrees: float | None = Field(default=None, ge=-180, le=180)
     affine_matrix: list[list[float]] = Field(default_factory=list)
+    transformed_fragment_points_px: list[dict[str, float]] = Field(
+        default_factory=list,
+        description="Contorno resultante após rotação, em pixels da imagem original.",
+    )
 
 
 class PlanFragment(BaseModel):
@@ -401,6 +405,8 @@ class PlanLine(BaseModel):
     start: PlanPoint
     end: PlanPoint
     label: str | None = Field(default=None, max_length=120)
+    visible: bool = True
+    locked: bool = False
     measurement: PlanDerivedMeasurement | None = Field(
         default=None, description="Resultado calculado pelo backend; valores do cliente são ignorados."
     )
@@ -419,6 +425,8 @@ class PlanAngle(BaseModel):
     vertex: PlanPoint
     end: PlanPoint
     label: str | None = Field(default=None, max_length=120)
+    visible: bool = True
+    locked: bool = False
     measurement: PlanDerivedMeasurement | None = Field(
         default=None, description="Resultado calculado pelo backend; valores do cliente são ignorados."
     )
@@ -436,6 +444,8 @@ class PlanCircle(BaseModel):
     center: PlanPoint
     edge: PlanPoint
     label: str | None = Field(default=None, max_length=120)
+    visible: bool = True
+    locked: bool = False
     measurement: PlanDerivedMeasurement | None = Field(
         default=None, description="Resultado calculado pelo backend; valores do cliente são ignorados."
     )
@@ -454,6 +464,8 @@ class PlanTplo(BaseModel):
     edge: PlanPoint
     rotation_degrees: float = Field(ge=-180, le=180)
     label: str | None = Field(default=None, max_length=120)
+    visible: bool = True
+    locked: bool = False
     measurement: PlanDerivedMeasurement | None = Field(
         default=None, description="Resultado calculado pelo backend; valores do cliente são ignorados."
     )
@@ -490,12 +502,62 @@ class PlanImplant(BaseModel):
     variant: str | None = Field(default=None, max_length=120)
     view: str | None = Field(default=None, max_length=120)
     label: str | None = Field(default=None, max_length=120)
+    visible: bool = True
+    locked: bool = False
     transform: PlanImplantTransform | None = Field(
         default=None, description="Transformação afim recalculada pelo backend para a imagem original."
     )
 
 
-PlanObject = Annotated[PlanLine | PlanAngle | PlanCircle | PlanTplo | PlanImplant, Field(discriminator="type")]
+PlanObject = Annotated[
+    PlanLine | PlanAngle | PlanCircle | PlanTplo | PlanImplant,
+    Field(discriminator="type"),
+]
+
+
+class PlanViewport(BaseModel):
+    """Presentation state for reopening the editor; geometry remains image-relative."""
+
+    zoom: float = Field(default=1, ge=0.1, le=20)
+    pan_x: float = Field(
+        default=0, ge=-10, le=10, description="Deslocamento horizontal em larguras da imagem."
+    )
+    pan_y: float = Field(
+        default=0, ge=-10, le=10, description="Deslocamento vertical em alturas da imagem."
+    )
+
+
+class PlanImageRegion(BaseModel):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    width: float = Field(gt=0, le=1)
+    height: float = Field(gt=0, le=1)
+
+    @model_validator(mode="after")
+    def validate_bounds(self) -> "PlanImageRegion":
+        if self.x + self.width > 1 or self.y + self.height > 1:
+            raise ValueError("A região da imagem deve estar contida no quadro original")
+        return self
+
+
+class PlanImageTransformResult(BaseModel):
+    status: Literal["CALCULATED", "IMAGE_DIMENSIONS_REQUIRED"]
+    crop_box_px: list[int] = Field(default_factory=list)
+    output_size_px: list[int] = Field(default_factory=list)
+    affine_matrix: list[list[float]] = Field(default_factory=list)
+
+
+class PlanImageTransform(BaseModel):
+    crop: PlanImageRegion | None = None
+    rotation_degrees: float = Field(
+        default=0,
+        ge=-180,
+        le=180,
+        description="Rotação global anti-horária, em graus, aplicada após o recorte.",
+    )
+    result: PlanImageTransformResult | None = Field(
+        default=None, description="Transformação da imagem recalculada pelo backend."
+    )
 
 
 class TploPlanMetadata(BaseModel):
@@ -653,6 +715,8 @@ class TploClinicalReviewAudit(BaseModel):
 
 class PlanDocument(BaseModel):
     schema_version: Literal[1] = 1
+    viewport: PlanViewport = Field(default_factory=PlanViewport)
+    image_transform: PlanImageTransform = Field(default_factory=PlanImageTransform)
     calibration: PlanCalibration | None = None
     tplo: TploPlanMetadata | None = None
     radiographic_quality: TploRadiographicQuality | None = None

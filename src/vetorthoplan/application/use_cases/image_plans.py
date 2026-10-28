@@ -131,6 +131,10 @@ class SaveImagePlan:
             rotation_table=rotation_table,
         )
         current = await self._plans.get(context.tenant_id, image_id)
+        _validate_locked_plan_objects(
+            current.document if current is not None else None,
+            document,
+        )
         now = self._clock.now()
         document = _record_clinical_review(
             document,
@@ -179,6 +183,47 @@ class SaveImagePlan:
                 latest = await self._plans.get(context.tenant_id, image_id)
                 raise PlanRevisionConflictError(latest.revision if latest else 0)
         return ImagePlanView(saved.image_id, saved.revision, saved.document, saved.updated_at)
+
+
+def _validate_locked_plan_objects(
+    previous_document: dict[str, object] | None,
+    document: dict[str, object],
+) -> None:
+    """Prevent geometry edits or deletion while an object is locked.
+
+    Unlocking is an explicit save that only changes the lock state (visibility may
+    also change); a later revision can then edit or remove the object.
+    """
+    if previous_document is None:
+        return
+    previous_objects = previous_document.get("objects", [])
+    next_objects = document.get("objects", [])
+    if not isinstance(previous_objects, list) or not isinstance(next_objects, list):
+        return
+    next_by_id = {
+        str(item.get("id")): item
+        for item in next_objects
+        if isinstance(item, dict) and item.get("id") is not None
+    }
+    derived_fields = {"measurement", "simulation", "transform"}
+    mutable_lock_fields = {"locked", "visible"}
+    for previous in previous_objects:
+        if not isinstance(previous, dict) or not previous.get("locked", False):
+            continue
+        object_id = str(previous.get("id"))
+        current = next_by_id.get(object_id)
+        if current is None:
+            raise ClinicalValidationError(f"O objeto bloqueado {object_id} não pode ser removido")
+        previous_geometry = {
+            key: value for key, value in previous.items()
+            if key not in derived_fields | mutable_lock_fields
+        }
+        current_geometry = {
+            key: value for key, value in current.items()
+            if key not in derived_fields | mutable_lock_fields
+        }
+        if previous_geometry != current_geometry:
+            raise ClinicalValidationError(f"O objeto bloqueado {object_id} não pode ser editado")
 
 
 class ReviewImagePlan:

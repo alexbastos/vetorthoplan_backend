@@ -182,6 +182,8 @@ class TploPlanReportRenderer:
         for item in snapshot.get("objects", []):
             if not isinstance(item, dict):
                 continue
+            if item.get("visible", True) is False:
+                continue
             kind = item.get("type")
             if kind == "LINE":
                 cls._draw_segment(draw, item.get("start"), item.get("end"), image.size)
@@ -212,7 +214,12 @@ class TploPlanReportRenderer:
                         for point in points:
                             source_x, source_y = cls._pixel_point(point, image.size)
                             dx, dy = source_x - center_x, source_y - center_y
-                            polygon.append((int(center_x + cosine * dx - sine * dy), int(center_y + sine * dx + cosine * dy)))
+                            polygon.append(
+                                (
+                                    int(center_x + cosine * dx - sine * dy),
+                                    int(center_y + sine * dx + cosine * dy),
+                                )
+                            )
                     else:
                         polygon = [cls._pixel_point(point, image.size) for point in points]
                     draw.line(polygon + [polygon[0]], fill="#dc2626", width=3)

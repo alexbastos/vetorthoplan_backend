@@ -24,10 +24,14 @@ Documento de acompanhamento do recorte inicial do VetOrthoPlan. Estados:
 | Funcionalidade | Estado | Observação |
 |---|---|---|
 | Plano versionado com controle de revisão | Concluído | Conflito retorna `409 PLAN_REVISION_CONFLICT`. |
+| Estado de zoom e pan do editor | Concluído no contrato | `document.viewport` persiste zoom e deslocamento sem alterar coordenadas ou medidas clínicas. |
+| ROI e rotação global da radiografia | Concluído | `document.image_transform` persiste crop/rotação; matriz e dimensões resultantes são calculadas pelo backend sem modificar o original. |
+| Exportação raster transformada com próteses | Concluído | `POST /api/v1/images/{image_id}/plan/export` entrega PNG com ROI, rotação, anotações visíveis e previews dos implantes aprovados sobrepostos. |
+| Visibilidade e bloqueio de objetos | Concluído | O plano persiste `visible` e `locked`; objetos bloqueados não podem ser movidos/editados ou removidos até serem desbloqueados em uma revisão separada. |
 | Calibração manual por linha ou círculo | Concluído | Retorna `mm_per_pixel` e `calibration_id`. |
 | Medidas de linha, círculo e ângulo | Concluído | Valores derivados da imagem original; linha também representa eixos anatômicos nomeados. |
 | Pré-validação técnica do plano TPLO | Implementado | `POST /api/v1/images/{image_id}/plan/validate` verifica revisão, imagem, calibração, qualidade, marcos/TPA, osteotomia, fragmento simulado, correção tabelada e referências de implantes sem gravar alterações. Retorna `READY_FOR_CLINICAL_REVIEW` com aviso de homologação pendente ou `INCOMPLETE` com bloqueios. |
-| Simulação geométrica de osteotomia TPLO | Parcial | Centro, raio, contorno e matriz afim implementados; falta validação clínica. |
+| Simulação geométrica de osteotomia TPLO | Parcial | Centro, raio, contorno transformado em pixels e matriz afim implementados; falta validação clínica. |
 | OpenAPI e documentação do plano | Concluído | Contratos exportados em `docs/openapi.json` e `openapi/openapi.json`. |
 
 ### Pré-validação técnica TPLO
@@ -58,7 +62,7 @@ Os bloqueios incluem radiografia não pronta, dimensões ou calibração ausente
 | Importação DWG e catálogo versionado de desenhos | Parcial | Backend preserva original, calcula SHA-256, controla versão/revisão e aceita derivados SVG/PNG de wrapper ODA. Conversor licenciado ainda não configurado; arquivos aguardam conversão. Não representa molde 3D nem certifica compatibilidade clínica. |
 | Catálogo versionado e revisão de ativos de implantes | Concluído no backend | Importação preserva originais opacos, admite conversor plugável e publica apenas ativos aprovados. Variantes e vistas são metadados versionados do item. Ver [IMPLANT_CATALOG.md](IMPLANT_CATALOG.md). |
 | Posicionamento de implantes no plano | Concluído no backend | Objeto `IMPLANT` vincula item aprovado do mesmo tenant a posição normalizada, rotação, escala, opacidade, variante e vista; matriz afim é recalculada pelo backend e incluída no snapshot/relatório. |
-| Renderização interativa do ativo no viewer | Pendente no frontend | O contrato e a transformação server-side estão prontos; integração visual pertence ao frontend. |
+| Dados para renderização de implantes no viewer | Concluído no backend | O catálogo aprovado fornece URL temporária e tipo do ativo; o plano retorna posicionamento, opacidade e matriz afim. O endpoint de exportação também compõe o preview rasterizado. A interação do canvas pertence ao frontend. |
 | Finalização imutável e checklist de completude | Concluído no backend | `POST /images/{image_id}/plan/finalize` cria o snapshot imutável, bloqueia edições posteriores e exige TPA aceito e correção tabelada quando uma lâmina é selecionada. |
 | Relatório PNG/PDF versionado | Concluído no backend | Gera PNG/PDF `TPLO_FINAL_REPORT_V2`, registra hashes, snapshot, correção, tabela/hash, auditoria e emite links temporários; o frontend apenas consome o contrato. |
 
