@@ -12,9 +12,9 @@
     },
     "version": "0.9.0",
     "x-git-branch": "protese",
-    "x-git-commit": "6aa269539b6f7b1f39f59aaca6ebaade25f1538f",
+    "x-git-commit": "b38fa92e38f594ed6f2fce79f3017d6caa6d87a2",
     "x-git-working-tree-dirty": true,
-    "x-generated-at": "2026-10-28T20:41:48.399216+00:00"
+    "x-generated-at": "2026-10-28T20:43:12.323117+00:00"
   },
   "paths": {
     "/health/live": {

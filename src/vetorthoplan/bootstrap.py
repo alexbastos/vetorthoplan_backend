@@ -54,14 +54,20 @@ def create_app() -> FastAPI:
         ),
         contact={"name": "VetOrthoPlan"},
         license_info={"name": "Proprietary"},
-        **{
-            "x-git-branch": os.getenv("VETORTHOPLAN_GIT_BRANCH", "unknown"),
-            "x-git-commit": os.getenv("VETORTHOPLAN_GIT_COMMIT", "unknown"),
-        },
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
     )
+
+    default_openapi = app.openapi
+
+    def openapi_with_revision() -> dict[str, object]:
+        schema = default_openapi()
+        schema["info"]["x-git-branch"] = os.getenv("VETORTHOPLAN_GIT_BRANCH", "unknown")
+        schema["info"]["x-git-commit"] = os.getenv("VETORTHOPLAN_GIT_COMMIT", "unknown")
+        return schema
+
+    app.openapi = openapi_with_revision
 
     @app.exception_handler(CaseNotFoundError)
     async def case_not_found_error_handler(
