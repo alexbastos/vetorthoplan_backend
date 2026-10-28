@@ -4,7 +4,12 @@ from uuid import UUID
 
 from vetorthoplan.application.context import TenantContext
 from vetorthoplan.application.errors import ImageNotFoundError
-from vetorthoplan.application.ports import Clock, FinalizedPlanRepository, ImagePlanRepository, ImageUploadRepository
+from vetorthoplan.application.ports import (
+    Clock,
+    FinalizedPlanRepository,
+    ImagePlanRepository,
+    ImageUploadRepository,
+)
 from vetorthoplan.application.ports.implant_catalog_repository import ImplantCatalogRepository
 from vetorthoplan.domain.imaging import ImageUploadStatus
 
@@ -121,6 +126,12 @@ class ValidateImagePlan:
             block("CALIBRATION_REQUIRED", "A calibração da imagem precisa estar calculada.", "calibration")
 
         tplo = document.get("tplo") if isinstance(document.get("tplo"), dict) else None
+        if tplo is None or tplo.get("eligibility") != "ELIGIBLE":
+            block(
+                "IMAGE_NOT_ELIGIBLE",
+                "A imagem não foi considerada elegível para planejamento TPLO.",
+                "tplo.eligibility",
+            )
         quality = document.get("radiographic_quality")
         quality_pass = (
             isinstance(quality, dict)

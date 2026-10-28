@@ -68,7 +68,7 @@ Os bloqueios incluem radiografia não pronta, dimensões ou calibração ausente
 2. Integrar no frontend a revisão clínica: `DRAFT` -> `READY_FOR_REVIEW` -> `APPROVED`/`REJECTED`, com bloqueios e auditoria visível.
 3. Integrar a simulação da osteotomia e os parâmetros de correção, exibindo a geometria calculada pelo backend e permitindo revisão manual antes da finalização.
 4. Integrar a finalização imutável e o download dos relatórios PNG/PDF.
-5. Executar contrato consumidor-produtor autenticado entre frontend/BFF e backend, incluindo conflitos de revisão, `401/403`, imagem não elegível e plano já finalizado.
+5. Integrar frontend/BFF ao contrato autenticado do backend; cobertura backend inicial para `401/403`, conflitos `409`, imagem inelegível, plano finalizado, referências de implantes e escopo de idempotência está em `tests/api/test_authenticated_contract.py`, `tests/api/test_image_plans.py` e `tests/unit/application/test_create_image_upload.py`.
 6. Homologar com o parceiro veterinário: posicionamento radiográfico, marcos anatômicos, método do TPA, tolerâncias, slope-alvo e tabela de rotação.
 7. Obter licença ODA, instalar o wrapper de conversão e integrar a interface administrativa ao fluxo DWG → revisão manual.
 8. Definir o formato canônico editável e contrato separado para moldes 3D antes de habilitar posicionamento/simulação clínica.

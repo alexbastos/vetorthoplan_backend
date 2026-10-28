@@ -28,6 +28,7 @@ DOCUMENT = {
     "additional_measurements_input": {"landmarks": {}, "reference_values": {}},
     "additional_measurements": [],
     "clinical_validation": None,
+    "tplo_correction": None,
     "objects": [],
 }
 
@@ -95,6 +96,13 @@ class Clock:
         return NOW
 
 
+class FinalizedPlans:
+    async def latest(self, tenant_id: UUID, image_id: UUID):
+        if (tenant_id, image_id) != (TENANT_ID, IMAGE_ID):
+            return None
+        return type("Finalized", (), {"version": 1})()
+
+
 def build_app():
     app = create_app()
     plans = Plans()
@@ -135,6 +143,27 @@ async def test_image_plan_get_put_and_revision_conflict() -> None:
     assert fetched.json()["revision"] == 1
     assert stale.status_code == 409
     assert stale.json()["code"] == "PLAN_REVISION_CONFLICT"
+
+
+@pytest.mark.asyncio
+async def test_finalized_plan_rejects_subsequent_edit_with_stable_conflict() -> None:
+    app = build_app()
+    app.dependency_overrides[get_save_image_plan] = lambda: SaveImagePlan(
+        plans=Plans(),
+        images=Images(),
+        id_generator=IdGenerator(),
+        clock=Clock(),
+        finalized_plans=FinalizedPlans(),
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.put(
+            f"/api/v1/images/{IMAGE_ID}/plan",
+            json={"base_revision": 0, "document": DOCUMENT},
+        )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "IMAGE_PLAN_FINALIZED"
 
 
 def test_openapi_documents_get_and_put_plan_contracts() -> None:

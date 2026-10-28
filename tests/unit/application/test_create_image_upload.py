@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from hashlib import sha256
 from uuid import UUID
 
 import pytest
@@ -35,10 +36,27 @@ class CaseRepository:
         )
 
 
+class AnyTenantCaseRepository:
+    async def get_by_id(self, tenant_id: UUID, case_id: UUID) -> Case | None:
+        if case_id != CASE_ID:
+            return None
+        return Case.create(
+            case_id=CASE_ID,
+            tenant_id=tenant_id,
+            actor_id=ACTOR_ID,
+            title="TPLO",
+            animal_name="Paciente sintético",
+            species="Canina",
+            sex=BiologicalSex.UNKNOWN,
+            now=NOW,
+        )
+
+
 class UploadRepository:
     def __init__(self, count: int = 0) -> None:
         self.count = count
         self.uploads: list[ImageUpload] = []
+        self.idempotency_scopes: list[tuple[UUID, UUID, str]] = []
 
     async def count_active_for_case(
         self,
@@ -49,6 +67,7 @@ class UploadRepository:
         return self.count
 
     async def get_by_idempotency_key(self, tenant_id, actor_id, key_hash):
+        self.idempotency_scopes.append((tenant_id, actor_id, key_hash))
         return None
 
     async def find_duplicate_for_case(self, tenant_id, case_id, sha256, now):
@@ -78,6 +97,21 @@ class Storage:
 class IdGenerator:
     def __init__(self) -> None:
         self.ids = iter((UPLOAD_ID, IMAGE_ID))
+
+    def new(self) -> UUID:
+        return next(self.ids)
+
+
+class FourIdsGenerator:
+    def __init__(self) -> None:
+        self.ids = iter(
+            (
+                UPLOAD_ID,
+                IMAGE_ID,
+                UUID("00000000-0000-4000-8000-000000000118"),
+                UUID("00000000-0000-4000-8000-000000000119"),
+            )
+        )
 
     def new(self) -> UUID:
         return next(self.ids)
@@ -145,3 +179,31 @@ async def test_create_image_upload_enforces_case_limit() -> None:
             TenantContext(tenant_id=TENANT_ID, actor_id=ACTOR_ID),
             idempotency_key="create-upload-3",
         )
+
+
+@pytest.mark.asyncio
+async def test_idempotency_lookup_is_scoped_to_tenant_and_actor() -> None:
+    repository = UploadRepository()
+    use_case = CreateImageUpload(
+        case_repository=AnyTenantCaseRepository(),
+        upload_repository=repository,
+        storage=Storage(),
+        id_generator=FourIdsGenerator(),
+        clock=Clock(),
+        environment="test",
+    )
+    other_tenant = UUID("00000000-0000-4000-8000-000000000117")
+    first = await use_case.execute(
+        CASE_ID, command(), TenantContext(TENANT_ID, ACTOR_ID), idempotency_key="same-key"
+    )
+    second = await use_case.execute(
+        CASE_ID, command(), TenantContext(other_tenant, ACTOR_ID), idempotency_key="same-key"
+    )
+
+    assert repository.idempotency_scopes == [
+        (TENANT_ID, ACTOR_ID, sha256(b"same-key").hexdigest()),
+        (other_tenant, ACTOR_ID, sha256(b"same-key").hexdigest()),
+    ]
+    assert first.upload.tenant_id == TENANT_ID
+    assert second.upload.tenant_id == other_tenant
+    assert first.upload.object_key != second.upload.object_key

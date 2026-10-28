@@ -208,7 +208,13 @@ def test_clinical_approval_cannot_accept_unconfigured_tpa() -> None:
         "clinical_validation": {"status": "APPROVED", "required_measurements": ["TPA"]},
         "tplo_measurement": {"tpa_degrees": 24.0, "acceptance": "NOT_CONFIGURED"},
     }
-    previous_document = {"clinical_validation": {"status": "READY_FOR_REVIEW"}}
+    previous_document = {
+        **document,
+        "clinical_validation": {
+            "status": "READY_FOR_REVIEW",
+            "required_measurements": ["TPA"],
+        },
+    }
 
     with pytest.raises(ClinicalValidationError, match="TPA"):
         _validate_clinical_review(document, previous_document=previous_document)
