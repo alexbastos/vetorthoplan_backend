@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -52,6 +54,10 @@ def create_app() -> FastAPI:
         ),
         contact={"name": "VetOrthoPlan"},
         license_info={"name": "Proprietary"},
+        **{
+            "x-git-branch": os.getenv("VETORTHOPLAN_GIT_BRANCH", "unknown"),
+            "x-git-commit": os.getenv("VETORTHOPLAN_GIT_COMMIT", "unknown"),
+        },
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
