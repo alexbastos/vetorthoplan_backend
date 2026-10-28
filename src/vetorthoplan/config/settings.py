@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     tplo_rotation_table_target_slope_degrees: float | None = Field(default=None, gt=0, lt=90)
     tplo_clinical_protocol_json: str | None = None
     implant_catalog_admin_token: str | None = Field(default=None, min_length=32)
+    implant_catalog_conversion_service_url: str | None = None
+    implant_catalog_conversion_service_token: str | None = None
+    implant_catalog_conversion_timeout_seconds: float = Field(default=120, gt=0, le=600)
+    # Deprecated aliases kept so existing deployments can migrate configuration gradually.
     oda_conversion_service_url: str | None = None
     oda_conversion_service_token: str | None = None
     oda_conversion_timeout_seconds: float = Field(default=120, gt=0, le=600)
@@ -79,10 +83,11 @@ class Settings(BaseSettings):
                 raise ValueError("JWKS_URL não pode ser vazio.")
             if not self.jwks_url.startswith("https://") and self.app_env not in {"local", "test"}:
                 raise ValueError("JWKS_URL deve usar HTTPS fora dos ambientes local e test.")
-        if self.oda_conversion_service_url and self.app_env not in {"local", "test"}:
-            if not self.oda_conversion_service_url.startswith("https://"):
+        converter_url = self.implant_catalog_conversion_service_url or self.oda_conversion_service_url
+        if converter_url and self.app_env not in {"local", "test"}:
+            if not converter_url.startswith("https://"):
                 raise ValueError(
-                    "ODA_CONVERSION_SERVICE_URL deve usar HTTPS fora dos ambientes local e test."
+                    "IMPLANT_CATALOG_CONVERSION_SERVICE_URL deve usar HTTPS fora dos ambientes local e test."
                 )
         return self
 

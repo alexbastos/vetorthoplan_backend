@@ -66,7 +66,16 @@ def derive_plan_measurements(
     for item in result.get("objects", []):
         item.pop("measurement", None)
         item.pop("simulation", None)
+        item.pop("transform", None)
         kind = item["type"]
+        if kind == "IMPLANT":
+            if not width_px or not height_px:
+                item["transform"] = {"status": "IMAGE_DIMENSIONS_REQUIRED", "coordinate_space": "IMAGE_PIXELS"}
+            else:
+                item["transform"] = _implant_transform(
+                    item, width_px=width_px, height_px=height_px
+                )
+            continue
         if kind == "ANGLE":
             value = _angle_degrees(item["start"], item["vertex"], item["end"])
             item["measurement"] = {
@@ -383,5 +392,25 @@ def _simulate_fragment(
         "affine_matrix": [
             [cosine, -sine, cx - cosine * cx + sine * cy],
             [sine, cosine, cy - sine * cx - cosine * cy],
+        ],
+    }
+
+
+def _implant_transform(
+    item: dict[str, Any], *, width_px: int, height_px: int
+) -> dict[str, Any]:
+    """Return an image-pixel affine matrix; never trust a client supplied matrix."""
+    center_x = item["position"]["x"] * width_px
+    center_y = item["position"]["y"] * height_px
+    radians = math.radians(item["rotation_degrees"])
+    scale = item["scale"]
+    cosine = math.cos(radians) * scale
+    sine = math.sin(radians) * scale
+    return {
+        "status": "CALCULATED",
+        "coordinate_space": "IMAGE_PIXELS",
+        "affine_matrix": [
+            [cosine, -sine, center_x - cosine * center_x + sine * center_y],
+            [sine, cosine, center_y - sine * center_x - cosine * center_y],
         ],
     }

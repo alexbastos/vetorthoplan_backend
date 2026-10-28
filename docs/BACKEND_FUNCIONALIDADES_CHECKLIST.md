@@ -25,9 +25,16 @@ Documento de acompanhamento do recorte inicial do VetOrthoPlan. Estados:
 |---|---|---|
 | Plano versionado com controle de revisão | Concluído | Conflito retorna `409 PLAN_REVISION_CONFLICT`. |
 | Calibração manual por linha ou círculo | Concluído | Retorna `mm_per_pixel` e `calibration_id`. |
-| Medidas de linha, círculo e ângulo | Concluído | Valores derivados da imagem original. |
+| Medidas de linha, círculo e ângulo | Concluído | Valores derivados da imagem original; linha também representa eixos anatômicos nomeados. |
+| Pré-validação técnica do plano TPLO | Implementado | `POST /api/v1/images/{image_id}/plan/validate` verifica revisão, imagem, calibração, qualidade, marcos/TPA, osteotomia, fragmento simulado, correção tabelada e referências de implantes sem gravar alterações. Retorna `READY_FOR_CLINICAL_REVIEW` com aviso de homologação pendente ou `INCOMPLETE` com bloqueios. |
 | Simulação geométrica de osteotomia TPLO | Parcial | Centro, raio, contorno e matriz afim implementados; falta validação clínica. |
 | OpenAPI e documentação do plano | Concluído | Contratos exportados em `docs/openapi.json` e `openapi/openapi.json`. |
+
+### Pré-validação técnica TPLO
+
+`POST /api/v1/images/{image_id}/plan/validate` avalia a revisão já persistida e não grava alterações. O corpo pode trazer `base_revision`; se informada e diferente da versão atual, a resposta inclui `PLAN_REVISION_CONFLICT`. O estado `READY_FOR_CLINICAL_REVIEW` significa que as verificações técnicas passaram e o plano pode ser apresentado ao veterinário. A resposta sempre carrega o aviso `CLINICAL_VALIDATION_PENDING` enquanto os critérios não forem homologados.
+
+Os bloqueios incluem radiografia não pronta, dimensões ou calibração ausentes, qualidade/elegibilidade incompletas, marcos ou TPA não calculados, falta de geometria/contorno simulado da osteotomia, correção tabelada indisponível quando há diâmetro de lâmina e referência de implante inválida. A ausência de seleção de lâmina gera aviso e deixa a verificação da tabela como `NOT_APPLICABLE`.
 
 ## Validação clínica TPLO
 
@@ -49,7 +56,9 @@ Documento de acompanhamento do recorte inicial do VetOrthoPlan. Estados:
 | Parâmetros clínicos de rotação e alvo de slope | Parcial | O backend aplica correspondência exata da tabela versionada no `PUT`/`GET` do plano e devolve rotação, alvo, versão e hash. Não interpola. Alvos/regras e uso clínico ainda precisam de homologação. |
 | Máscara editável e transformação visual do fragmento no frontend | Parcial | Backend persiste contorno e transformação; integração visual pendente. |
 | Importação DWG e catálogo versionado de desenhos | Parcial | Backend preserva original, calcula SHA-256, controla versão/revisão e aceita derivados SVG/PNG de wrapper ODA. Conversor licenciado ainda não configurado; arquivos aguardam conversão. Não representa molde 3D nem certifica compatibilidade clínica. |
-| Moldes digitais de próteses/implantes | Pendente | Não são necessários para concluir a etapa de medição TPLO; entram depois do contrato do catálogo e antes da simulação final de posicionamento do implante. |
+| Catálogo versionado e revisão de ativos de implantes | Concluído no backend | Importação preserva originais opacos, admite conversor plugável e publica apenas ativos aprovados. Variantes e vistas são metadados versionados do item. Ver [IMPLANT_CATALOG.md](IMPLANT_CATALOG.md). |
+| Posicionamento de implantes no plano | Concluído no backend | Objeto `IMPLANT` vincula item aprovado do mesmo tenant a posição normalizada, rotação, escala, opacidade, variante e vista; matriz afim é recalculada pelo backend e incluída no snapshot/relatório. |
+| Renderização interativa do ativo no viewer | Pendente no frontend | O contrato e a transformação server-side estão prontos; integração visual pertence ao frontend. |
 | Finalização imutável e checklist de completude | Concluído no backend | `POST /images/{image_id}/plan/finalize` cria o snapshot imutável, bloqueia edições posteriores e exige TPA aceito e correção tabelada quando uma lâmina é selecionada. |
 | Relatório PNG/PDF versionado | Concluído no backend | Gera PNG/PDF `TPLO_FINAL_REPORT_V2`, registra hashes, snapshot, correção, tabela/hash, auditoria e emite links temporários; o frontend apenas consome o contrato. |
 
@@ -62,11 +71,11 @@ Documento de acompanhamento do recorte inicial do VetOrthoPlan. Estados:
 5. Executar contrato consumidor-produtor autenticado entre frontend/BFF e backend, incluindo conflitos de revisão, `401/403`, imagem não elegível e plano já finalizado.
 6. Homologar com o parceiro veterinário: posicionamento radiográfico, marcos anatômicos, método do TPA, tolerâncias, slope-alvo e tabela de rotação.
 7. Obter licença ODA, instalar o wrapper de conversão e integrar a interface administrativa ao fluxo DWG → revisão manual.
-8. Definir contrato separado para moldes 3D e só então importar geometria de próteses/implantes para simulação.
+8. Definir o formato canônico editável e contrato separado para moldes 3D antes de habilitar posicionamento/simulação clínica.
 
 ## Quando os moldes serão necessários
 
-Os moldes não são pré-requisito para o fluxo atual de planejamento geométrico TPLO. O backend já calcula e persiste calibração, marcos, TPA, medidas adicionais, parâmetros de correção, tabela de rotação, simulação geométrica e snapshot final.
+Os moldes não são pré-requisito para o fluxo atual de planejamento geométrico TPLO. O backend calcula e persiste calibração, marcos, TPA, medidas adicionais, parâmetros de correção, tabela de rotação, simulação geométrica, posicionamento referenciado de implantes e snapshot final.
 
 Os DWGs New Vet podem alimentar o catálogo de desenhos 2D após conversão ODA e revisão, mas não fornecem por si só molde 3D para sobrepor à osteotomia. A simulação com geometria 3D requer contrato separado que defina formato (`STL`, `OBJ` ou outro), unidade, sistema de coordenadas, lateridade, versão, compatibilidade, origem/licença, checksum e regras de visualização.
 

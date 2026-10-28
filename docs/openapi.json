@@ -11,10 +11,10 @@
       "name": "Proprietary"
     },
     "version": "0.9.0",
-    "x-git-branch": "calibration",
-    "x-git-commit": "90ac0b3ff9c0cf04eed64c2bd7533f36e29a4894",
+    "x-git-branch": "protese",
+    "x-git-commit": "67cf7d1eb37c1e46409adafbed5636479349308f",
     "x-git-working-tree-dirty": true,
-    "x-generated-at": "2026-10-27T20:29:55.146592+00:00"
+    "x-generated-at": "2026-10-28T12:44:08.546818+00:00"
   },
   "paths": {
     "/health/live": {
@@ -723,7 +723,7 @@
         "tags": [
           "Implant catalog"
         ],
-        "summary": "Enviar arquivo DWG original",
+        "summary": "Enviar arquivo de origem do implante",
         "operationId": "upload_source_api_v1_implant_catalog_imports__import_id__source_put",
         "security": [
           {
@@ -755,6 +755,22 @@
                 }
               ],
               "title": "X-Original-Filename"
+            }
+          },
+          {
+            "name": "X-Source-Media-Type",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Source-Media-Type"
             }
           },
           {
@@ -1681,6 +1697,82 @@
         }
       }
     },
+    "/api/v1/images/{image_id}/plan/validate": {
+      "post": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "Pré-validar tecnicamente um plano TPLO salvo",
+        "description": "Executa verificações estruturais sem alterar o plano. READY_FOR_CLINICAL_REVIEW indica consistência técnica para avaliação veterinária e não representa homologação clínica.",
+        "operationId": "validate_image_plan_api_v1_images__image_id__plan_validate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ValidateImagePlanRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImagePlanValidationResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/images/{image_id}/plan/review": {
       "post": {
         "tags": [
@@ -2349,6 +2441,17 @@
             ],
             "title": "Source Sha256"
           },
+          "source_media_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Media Type"
+          },
           "source_size_bytes": {
             "anyOf": [
               {
@@ -2393,6 +2496,28 @@
               }
             ],
             "title": "Svg Url"
+          },
+          "editable_asset_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editable Asset Url"
+          },
+          "editable_asset_media_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editable Asset Media Type"
           },
           "preview_url": {
             "anyOf": [
@@ -2759,6 +2884,22 @@
               }
             ],
             "title": "Clinical Indication"
+          },
+          "variants": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Variants"
+          },
+          "views": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Views"
           }
         },
         "type": "object",
@@ -3089,6 +3230,71 @@
           "updated_at"
         ],
         "title": "ImagePlanResponse"
+      },
+      "ImagePlanValidationResponse": {
+        "properties": {
+          "image_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Image Id"
+          },
+          "plan_revision": {
+            "type": "integer",
+            "title": "Plan Revision"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "READY_FOR_CLINICAL_REVIEW",
+              "INCOMPLETE"
+            ],
+            "title": "Status"
+          },
+          "checks": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "PASS",
+                "FAIL",
+                "NOT_APPLICABLE",
+                "PENDING",
+                "NOT_CHECKED"
+              ]
+            },
+            "type": "object",
+            "title": "Checks"
+          },
+          "blocking_errors": {
+            "items": {
+              "$ref": "#/components/schemas/PlanValidationIssueResponse"
+            },
+            "type": "array",
+            "title": "Blocking Errors"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/PlanValidationIssueResponse"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "validated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Validated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_id",
+          "plan_revision",
+          "status",
+          "checks",
+          "blocking_errors",
+          "warnings",
+          "validated_at"
+        ],
+        "title": "ImagePlanValidationResponse"
       },
       "ImagePreviewResponse": {
         "properties": {
@@ -3876,6 +4082,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/PlanTplo"
+                },
+                {
+                  "$ref": "#/components/schemas/PlanImplant"
                 }
               ],
               "discriminator": {
@@ -3883,6 +4092,7 @@
                 "mapping": {
                   "ANGLE": "#/components/schemas/PlanAngle",
                   "CIRCLE": "#/components/schemas/PlanCircle",
+                  "IMPLANT": "#/components/schemas/PlanImplant",
                   "LINE": "#/components/schemas/PlanLine",
                   "TPLO": "#/components/schemas/PlanTplo"
                 }
@@ -3925,6 +4135,136 @@
           "points"
         ],
         "title": "PlanFragment"
+      },
+      "PlanImplant": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "const": "IMPLANT",
+            "title": "Type"
+          },
+          "catalog_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Catalog Item Id"
+          },
+          "position": {
+            "$ref": "#/components/schemas/PlanPoint"
+          },
+          "rotation_degrees": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Rotation Degrees",
+            "default": 0
+          },
+          "scale": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Scale",
+            "default": 1
+          },
+          "opacity": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Opacity",
+            "default": 1
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "transform": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanImplantTransform"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Transformação afim recalculada pelo backend para a imagem original."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "catalog_item_id",
+          "position"
+        ],
+        "title": "PlanImplant",
+        "description": "Placement of an approved, tenant-scoped catalog asset in source-image coordinates."
+      },
+      "PlanImplantTransform": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "CALCULATED",
+              "IMAGE_DIMENSIONS_REQUIRED"
+            ],
+            "title": "Status",
+            "default": "IMAGE_DIMENSIONS_REQUIRED"
+          },
+          "coordinate_space": {
+            "type": "string",
+            "const": "IMAGE_PIXELS",
+            "title": "Coordinate Space",
+            "default": "IMAGE_PIXELS"
+          },
+          "affine_matrix": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Affine Matrix"
+          }
+        },
+        "type": "object",
+        "title": "PlanImplantTransform"
       },
       "PlanLine": {
         "properties": {
@@ -4231,6 +4571,35 @@
           "status"
         ],
         "title": "PlanTploSimulation"
+      },
+      "PlanValidationIssueResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "PlanValidationIssueResponse"
       },
       "PresignedPostResponse": {
         "properties": {
@@ -5306,6 +5675,24 @@
           "entries"
         ],
         "title": "TploRotationTableResponse"
+      },
+      "ValidateImagePlanRequest": {
+        "properties": {
+          "base_revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Revision"
+          }
+        },
+        "type": "object",
+        "title": "ValidateImagePlanRequest"
       },
       "ValidationError": {
         "properties": {

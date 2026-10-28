@@ -14,7 +14,7 @@ from vetorthoplan.infrastructure.database.ingestion_job_queue import (
     SqlAlchemyIngestionJobQueue,
 )
 from vetorthoplan.infrastructure.image_content import BasicImageContentInspector
-from vetorthoplan.infrastructure.oda_conversion import process_next_oda_conversion
+from vetorthoplan.infrastructure.oda_conversion import process_next_catalog_conversion
 from vetorthoplan.infrastructure.storage import S3PresignedPostStorage
 
 logger = logging.getLogger("vetorthoplan.worker")
@@ -44,7 +44,7 @@ async def run_worker(*, once: bool) -> None:
                 result = await use_case.execute()
                 catalog_processed = False
                 if result is None:
-                    catalog_processed = await process_next_oda_conversion(
+                    catalog_processed = await process_next_catalog_conversion(
                         session, settings=settings, storage=storage
                     )
                 await session.commit()

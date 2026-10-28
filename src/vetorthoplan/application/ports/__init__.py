@@ -8,6 +8,7 @@ from vetorthoplan.application.ports.image_content_inspector import (
 )
 from vetorthoplan.application.ports.image_plan_repository import ImagePlanRepository
 from vetorthoplan.application.ports.image_upload_repository import ImageUploadRepository
+from vetorthoplan.application.ports.implant_catalog_repository import ImplantCatalogRepository
 from vetorthoplan.application.ports.ingestion_job_queue import IngestionJobQueue
 from vetorthoplan.application.ports.plan_report_renderer import (
     PlanReportRenderer,
@@ -32,6 +33,7 @@ __all__ = [
     "InspectedImageContent",
     "ImageUploadRepository",
     "ImagePlanRepository",
+    "ImplantCatalogRepository",
     "FinalizedPlanRepository",
     "IngestionJobQueue",
     "PlanReportRenderer",

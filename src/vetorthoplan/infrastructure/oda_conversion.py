@@ -14,15 +14,22 @@ from vetorthoplan.config.settings import Settings
 from vetorthoplan.infrastructure.database.models import ImplantCatalogImportModel
 from vetorthoplan.infrastructure.storage import S3PresignedPostStorage
 
-MAX_SVG_BYTES = 10 * 1024 * 1024
+MAX_EDITABLE_ASSET_BYTES = 10 * 1024 * 1024
 MAX_PREVIEW_BYTES = 20 * 1024 * 1024
-logger = logging.getLogger("vetorthoplan.oda_conversion")
+logger = logging.getLogger("vetorthoplan.implant_catalog_conversion")
 
 
-async def process_next_oda_conversion(
+async def process_next_catalog_conversion(
     session: AsyncSession, *, settings: Settings, storage: S3PresignedPostStorage
 ) -> bool:
-    if not settings.oda_conversion_service_url:
+    service_url = settings.implant_catalog_conversion_service_url or settings.oda_conversion_service_url
+    service_token = settings.implant_catalog_conversion_service_token or settings.oda_conversion_service_token
+    timeout = (
+        settings.implant_catalog_conversion_timeout_seconds
+        if settings.implant_catalog_conversion_service_url
+        else settings.oda_conversion_timeout_seconds
+    )
+    if not service_url:
         return False
     row = await session.scalar(
         select(ImplantCatalogImportModel)
@@ -45,21 +52,33 @@ async def process_next_oda_conversion(
         if (
             len(source) != row.source_size_bytes
             or digest != row.source_sha256
-            or not source.startswith(b"AC10")
         ):
             raise ValueError("SOURCE_INTEGRITY_CHECK_FAILED")
-        headers = {"Content-Type": "application/acad", "X-Source-SHA256": digest}
-        if settings.oda_conversion_service_token:
-            headers["Authorization"] = f"Bearer {settings.oda_conversion_service_token}"
-        async with httpx.AsyncClient(timeout=settings.oda_conversion_timeout_seconds) as client:
-            response = await client.post(settings.oda_conversion_service_url, content=source, headers=headers)
+        headers = {
+            "Content-Type": row.source_media_type or (
+                "application/acad" if settings.oda_conversion_service_url else "application/octet-stream"
+            ),
+            "X-Source-SHA256": digest,
+            "X-Original-Filename": row.original_filename or "implant-source",
+        }
+        if service_token:
+            headers["Authorization"] = f"Bearer {service_token}"
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(service_url, content=source, headers=headers)
             response.raise_for_status()
         result = response.json()
-        svg = _decode_result(result.get("svg_base64"), MAX_SVG_BYTES, "SVG_OUTPUT_INVALID")
+        # Accept the legacy converter response while the selected source format and
+        # canonical editing representation are being finalized.
+        asset_value = result.get("editable_asset_base64", result.get("svg_base64"))
+        asset = _decode_result(asset_value, MAX_EDITABLE_ASSET_BYTES, "EDITABLE_ASSET_INVALID")
+        asset_media_type = result.get("editable_asset_media_type", "image/svg+xml")
+        if not isinstance(asset_media_type, str) or "/" not in asset_media_type or len(asset_media_type) > 160:
+            raise ValueError("EDITABLE_ASSET_MEDIA_TYPE_INVALID")
         preview = _decode_result(
             result.get("preview_png_base64"), MAX_PREVIEW_BYTES, "PREVIEW_OUTPUT_INVALID"
         )
-        _validate_svg(svg)
+        if asset_media_type.lower() == "image/svg+xml":
+            _validate_svg(asset)
         if not preview.startswith(b"\x89PNG\r\n\x1a\n"):
             raise ValueError("PREVIEW_OUTPUT_INVALID")
         converter_version = result.get("converter_version")
@@ -68,11 +87,14 @@ async def process_next_oda_conversion(
         conversion_metadata = result.get("drawing_metadata", {})
         if not isinstance(conversion_metadata, dict):
             raise ValueError("CONVERSION_METADATA_INVALID")
-        svg_key = f"implant-catalog/derived/{row.id}/{digest}.svg"
+        extension = "svg" if asset_media_type.lower() == "image/svg+xml" else "asset"
+        asset_key = f"implant-catalog/derived/{row.id}/{digest}.{extension}"
         preview_key = f"implant-catalog/derived/{row.id}/{digest}-preview.png"
-        await storage.store_object(svg_key, svg, "image/svg+xml", metadata={"source-sha256": digest})
+        await storage.store_object(asset_key, asset, asset_media_type, metadata={"source-sha256": digest})
         await storage.store_object(preview_key, preview, "image/png", metadata={"source-sha256": digest})
-        row.svg_object_key = svg_key
+        row.editable_asset_object_key = asset_key
+        row.editable_asset_media_type = asset_media_type.lower()
+        row.svg_object_key = asset_key if asset_media_type.lower() == "image/svg+xml" else None
         row.preview_object_key = preview_key
         row.converter_version = converter_version[:100]
         row.conversion_metadata = conversion_metadata
@@ -81,7 +103,7 @@ async def process_next_oda_conversion(
     except Exception:
         logger.exception("Falha ao converter importação de prótese %s", row.id)
         row.status = "FAILED"
-        row.error_code = "ODA_CONVERSION_FAILED"
+        row.error_code = "CATALOG_CONVERSION_FAILED"
     await session.flush()
     return True
 

@@ -471,7 +471,31 @@ class PlanTplo(BaseModel):
         return self
 
 
-PlanObject = Annotated[PlanLine | PlanAngle | PlanCircle | PlanTplo, Field(discriminator="type")]
+class PlanImplantTransform(BaseModel):
+    status: Literal["CALCULATED", "IMAGE_DIMENSIONS_REQUIRED"] = "IMAGE_DIMENSIONS_REQUIRED"
+    coordinate_space: Literal["IMAGE_PIXELS"] = "IMAGE_PIXELS"
+    affine_matrix: list[list[float]] = Field(default_factory=list)
+
+
+class PlanImplant(BaseModel):
+    """Placement of an approved, tenant-scoped catalog asset in source-image coordinates."""
+
+    id: UUID
+    type: Literal["IMPLANT"]
+    catalog_item_id: UUID
+    position: PlanPoint
+    rotation_degrees: float = Field(default=0, ge=-180, le=180)
+    scale: float = Field(default=1, gt=0, le=100)
+    opacity: float = Field(default=1, ge=0, le=1)
+    variant: str | None = Field(default=None, max_length=120)
+    view: str | None = Field(default=None, max_length=120)
+    label: str | None = Field(default=None, max_length=120)
+    transform: PlanImplantTransform | None = Field(
+        default=None, description="Transformação afim recalculada pelo backend para a imagem original."
+    )
+
+
+PlanObject = Annotated[PlanLine | PlanAngle | PlanCircle | PlanTplo | PlanImplant, Field(discriminator="type")]
 
 
 class TploPlanMetadata(BaseModel):
@@ -678,6 +702,26 @@ class ImagePlanResponse(BaseModel):
     revision: int
     document: PlanDocument
     updated_at: datetime | None
+
+
+class ValidateImagePlanRequest(BaseModel):
+    base_revision: int | None = Field(default=None, ge=0)
+
+
+class PlanValidationIssueResponse(BaseModel):
+    code: str
+    message: str
+    field: str | None = None
+
+
+class ImagePlanValidationResponse(BaseModel):
+    image_id: UUID
+    plan_revision: int
+    status: Literal["READY_FOR_CLINICAL_REVIEW", "INCOMPLETE"]
+    checks: dict[str, Literal["PASS", "FAIL", "NOT_APPLICABLE", "PENDING", "NOT_CHECKED"]]
+    blocking_errors: list[PlanValidationIssueResponse]
+    warnings: list[PlanValidationIssueResponse]
+    validated_at: datetime
 
 
 class FinalizeImagePlanRequest(BaseModel):

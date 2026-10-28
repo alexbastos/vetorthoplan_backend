@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import math
 import unicodedata
 from typing import Any
 from uuid import UUID
@@ -108,12 +109,32 @@ class TploPlanReportRenderer:
                     f"max error={item.get('max_absolute_error')}; acceptance={item.get('acceptance')}"
                 )
         for index, item in enumerate(snapshot.get("objects", []), start=1):
-            if isinstance(item, dict) and item.get("type") == "TPLO":
+            if isinstance(item, dict) and item.get("type") == "LINE":
+                values = (item.get("measurement") or {}).get("values") or {}
+                rows.append(f"Line object {index}: length={values.get('length')} mm")
+            elif isinstance(item, dict) and item.get("type") == "ANGLE":
+                values = (item.get("measurement") or {}).get("values") or {}
+                rows.append(f"Angle object {index}: angle={values.get('angle')} degrees")
+            elif isinstance(item, dict) and item.get("type") == "CIRCLE":
+                values = (item.get("measurement") or {}).get("values") or {}
+                rows.append(
+                    f"Circle object {index}: radius={values.get('radius')} mm; "
+                    f"diameter={values.get('diameter')} mm; circumference={values.get('circumference')} mm"
+                )
+            elif isinstance(item, dict) and item.get("type") == "TPLO":
                 measurement = item.get("measurement") or {}
                 values = measurement.get("values") or {}
                 rows.append(
                     f"TPLO object {index}: radius={values.get('radius')} mm; "
                     f"rotation={values.get('rotation')} degrees"
+                )
+            elif isinstance(item, dict) and item.get("type") == "IMPLANT":
+                position = item.get("position") or {}
+                rows.append(
+                    f"Implant object {index}: catalog_item={item.get('catalog_item_id')}; "
+                    f"position=({position.get('x')}, {position.get('y')}); "
+                    f"rotation={item.get('rotation_degrees')} degrees; scale={item.get('scale')}; "
+                    f"opacity={item.get('opacity')}; variant={item.get('variant')}; view={item.get('view')}"
                 )
         validation = snapshot.get("clinical_validation") or {}
         rows.append(f"Clinical review status: {validation.get('status', 'not recorded')}")
@@ -183,8 +204,31 @@ class TploPlanReportRenderer:
                 fragment = item.get("fragment") or {}
                 points = fragment.get("points") or []
                 if len(points) > 2:
-                    polygon = [cls._pixel_point(point, image.size) for point in points]
+                    if (item.get("simulation") or {}).get("status") == "SIMULATED":
+                        center_x, center_y = cls._pixel_point(item["center"], image.size)
+                        radians = math.radians(float(item.get("rotation_degrees", 0)))
+                        cosine, sine = math.cos(radians), math.sin(radians)
+                        polygon = []
+                        for point in points:
+                            source_x, source_y = cls._pixel_point(point, image.size)
+                            dx, dy = source_x - center_x, source_y - center_y
+                            polygon.append((int(center_x + cosine * dx - sine * dy), int(center_y + sine * dx + cosine * dy)))
+                    else:
+                        polygon = [cls._pixel_point(point, image.size) for point in points]
                     draw.line(polygon + [polygon[0]], fill="#dc2626", width=3)
+            elif kind == "IMPLANT":
+                position = item.get("position")
+                if isinstance(position, dict):
+                    x, y = cls._pixel_point(position, image.size)
+                    opacity = max(0.2, min(1.0, float(item.get("opacity", 1))))
+                    color = (29, 78, 216, round(opacity * 255))
+                    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+                    implant_draw = ImageDraw.Draw(overlay)
+                    radians = float(item.get("rotation_degrees", 0)) * 3.141592653589793 / 180
+                    dx, dy = 28 * math.cos(radians), 28 * math.sin(radians)
+                    implant_draw.line((x - dx, y - dy, x + dx, y + dy), fill=color, width=7)
+                    implant_draw.ellipse((x - 8, y - 8, x + 8, y + 8), fill=color)
+                    image.paste(overlay, (0, 0), overlay)
 
     @classmethod
     def _draw_point(

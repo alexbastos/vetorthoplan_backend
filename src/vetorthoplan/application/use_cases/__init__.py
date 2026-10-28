@@ -34,6 +34,11 @@ from vetorthoplan.application.use_cases.process_image_ingestion import (
 from vetorthoplan.application.use_cases.read_images import GetImage, ListCaseImages
 from vetorthoplan.application.use_cases.rename_image import RenameImage
 from vetorthoplan.application.use_cases.retry_ingestion_job import RetryIngestionJob
+from vetorthoplan.application.use_cases.validate_image_plan import (
+    ImagePlanValidationView,
+    PlanValidationIssue,
+    ValidateImagePlan,
+)
 
 __all__ = [
     "CreatedImageUpload",
@@ -65,5 +70,8 @@ __all__ = [
     "ProcessedImageIngestion",
     "ProcessNextImageIngestion",
     "RetryIngestionJob",
+    "ValidateImagePlan",
+    "ImagePlanValidationView",
+    "PlanValidationIssue",
     "RenameImage",
 ]

@@ -1,6 +1,8 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from vetorthoplan.api.dependencies import (
     FinalizeImagePlanDependency,
@@ -9,6 +11,7 @@ from vetorthoplan.api.dependencies import (
     ReviewImagePlanDependency,
     SaveImagePlanDependency,
     TenantContextDependency,
+    ValidateImagePlanDependency,
     get_tenant_context,
 )
 from vetorthoplan.api.schemas import (
@@ -16,11 +19,15 @@ from vetorthoplan.api.schemas import (
     FinalizedImagePlanResponse,
     FinalizeImagePlanRequest,
     ImagePlanResponse,
+    ImagePlanValidationResponse,
     ReviewImagePlanRequest,
     SaveImagePlanRequest,
+    ValidateImagePlanRequest,
 )
 from vetorthoplan.application.use_cases.finalize_image_plan import FinalizedPlanView
 from vetorthoplan.application.use_cases.image_plans import ReviewImagePlanCommand
+from vetorthoplan.infrastructure.database.models import ImplantCatalogImportModel
+from vetorthoplan.infrastructure.database.session import get_database_session
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(get_tenant_context)])
 
@@ -40,6 +47,45 @@ async def get_image_plan(
     return ImagePlanResponse(**{field: getattr(plan, field) for field in ImagePlanResponse.model_fields})
 
 
+@router.post(
+    "/images/{image_id}/plan/validate",
+    response_model=ImagePlanValidationResponse,
+    tags=["Planning"],
+    summary="Pré-validar tecnicamente um plano TPLO salvo",
+    description=(
+        "Executa verificações estruturais sem alterar o plano. READY_FOR_CLINICAL_REVIEW indica "
+        "consistência técnica para avaliação veterinária e não representa homologação clínica."
+    ),
+    responses={404: {"model": ErrorResponse}},
+)
+async def validate_image_plan(
+    image_id: UUID,
+    context: TenantContextDependency,
+    use_case: ValidateImagePlanDependency,
+    payload: ValidateImagePlanRequest | None = None,
+) -> ImagePlanValidationResponse:
+    validation = await use_case.execute(
+        image_id,
+        context,
+        base_revision=payload.base_revision if payload is not None else None,
+    )
+    return ImagePlanValidationResponse(
+        image_id=validation.image_id,
+        plan_revision=validation.plan_revision,
+        status=validation.status,
+        checks=validation.checks,
+        blocking_errors=[
+            {"code": issue.code, "message": issue.message, "field": issue.field}
+            for issue in validation.blocking_errors
+        ],
+        warnings=[
+            {"code": issue.code, "message": issue.message, "field": issue.field}
+            for issue in validation.warnings
+        ],
+        validated_at=validation.validated_at,
+    )
+
+
 @router.put(
     "/images/{image_id}/plan",
     response_model=ImagePlanResponse,
@@ -51,7 +97,32 @@ async def save_image_plan(
     payload: SaveImagePlanRequest,
     context: TenantContextDependency,
     use_case: SaveImagePlanDependency,
+    session: AsyncSession = Depends(get_database_session),
 ) -> ImagePlanResponse:
+    implants = [item for item in payload.document.objects if item.type == "IMPLANT"]
+    implant_ids = {item.catalog_item_id for item in implants}
+    if implant_ids:
+        rows = list(
+            await session.scalars(
+                select(ImplantCatalogImportModel).where(
+                    ImplantCatalogImportModel.id.in_(implant_ids),
+                    ImplantCatalogImportModel.tenant_id == context.tenant_id,
+                    ImplantCatalogImportModel.status == "APPROVED",
+                )
+            )
+        )
+        catalog_items = {row.id: row for row in rows}
+        if set(catalog_items) != implant_ids:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "IMPLANT_NOT_AVAILABLE", "message": "O implante não está aprovado ou não pertence à organização."},
+            )
+        for implant in implants:
+            metadata = catalog_items[implant.catalog_item_id].metadata_json
+            if implant.variant is not None and implant.variant not in metadata.get("variants", []):
+                raise HTTPException(status_code=422, detail={"code": "IMPLANT_VARIANT_INVALID"})
+            if implant.view is not None and implant.view not in metadata.get("views", []):
+                raise HTTPException(status_code=422, detail={"code": "IMPLANT_VIEW_INVALID"})
     plan = await use_case.execute(
         image_id,
         payload.base_revision,

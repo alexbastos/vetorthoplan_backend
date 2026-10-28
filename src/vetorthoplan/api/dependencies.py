@@ -28,6 +28,7 @@ from vetorthoplan.application.use_cases import (
     RetryIngestionJob,
     ReviewImagePlan,
     SaveImagePlan,
+    ValidateImagePlan,
 )
 from vetorthoplan.config.settings import Settings, get_settings
 from vetorthoplan.domain.planning.clinical_protocol import parse_clinical_protocol
@@ -47,6 +48,7 @@ from vetorthoplan.infrastructure.database.finalized_plan_repository import (
     SqlAlchemyFinalizedPlanRepository,
 )
 from vetorthoplan.infrastructure.database.image_plan_repository import SqlAlchemyImagePlanRepository
+from vetorthoplan.infrastructure.database.implant_catalog_repository import SqlAlchemyImplantCatalogRepository
 from vetorthoplan.infrastructure.database.image_upload_repository import (
     SqlAlchemyImageUploadRepository,
 )
@@ -332,6 +334,18 @@ def get_image_plan(
     )
 
 
+def get_validate_image_plan(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> ValidateImagePlan:
+    return ValidateImagePlan(
+        plans=SqlAlchemyImagePlanRepository(session),
+        images=SqlAlchemyImageUploadRepository(session),
+        finalized_plans=SqlAlchemyFinalizedPlanRepository(session),
+        implant_catalog=SqlAlchemyImplantCatalogRepository(session),
+        clock=SystemClock(),
+    )
+
+
 def get_save_image_plan(
     session: Annotated[AsyncSession, Depends(get_database_session)],
     settings: Annotated[Settings, Depends(get_settings)],
@@ -443,6 +457,7 @@ DeleteImageDependency = Annotated[DeleteImage, Depends(get_delete_image)]
 RenameImageDependency = Annotated[RenameImage, Depends(get_rename_image)]
 GetImagePreviewDependency = Annotated[GetImagePreview, Depends(get_image_preview)]
 GetImagePlanDependency = Annotated[GetImagePlan, Depends(get_image_plan)]
+ValidateImagePlanDependency = Annotated[ValidateImagePlan, Depends(get_validate_image_plan)]
 SaveImagePlanDependency = Annotated[SaveImagePlan, Depends(get_save_image_plan)]
 ReviewImagePlanDependency = Annotated[ReviewImagePlan, Depends(get_review_image_plan)]
 FinalizeImagePlanDependency = Annotated[FinalizeImagePlan, Depends(get_finalize_image_plan)]

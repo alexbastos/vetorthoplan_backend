@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +20,7 @@ from vetorthoplan.infrastructure.database.session import get_database_session
 from vetorthoplan.infrastructure.storage import S3PresignedPostStorage
 
 router = APIRouter(prefix="/api/v1/implant-catalog", tags=["Implant catalog"])
-MAX_DWG_BYTES = 50 * 1024 * 1024
+MAX_SOURCE_BYTES = 50 * 1024 * 1024
 
 
 class CreateCatalogImportRequest(BaseModel):
@@ -32,6 +32,15 @@ class CreateCatalogImportRequest(BaseModel):
     units: Literal["MM", "INCH", "UNITLESS"]
     source_reference: str | None = Field(default=None, max_length=1000)
     clinical_indication: str | None = Field(default=None, max_length=500)
+    variants: list[str] = Field(default_factory=list, max_length=100)
+    views: list[str] = Field(default_factory=list, max_length=100)
+
+    @model_validator(mode="after")
+    def validate_choices(self) -> "CreateCatalogImportRequest":
+        for field_name, values in (("variants", self.variants), ("views", self.views)):
+            if len(values) != len(set(values)) or any(not value.strip() or len(value) > 120 for value in values):
+                raise ValueError(f"{field_name} deve conter valores únicos, não vazios e de até 120 caracteres")
+        return self
 
 
 class ReviewRequest(BaseModel):
@@ -44,10 +53,13 @@ class CatalogImportResponse(BaseModel):
     status: str
     original_filename: str | None
     source_sha256: str | None
+    source_media_type: str | None = None
     source_size_bytes: int | None
     converter_version: str | None
     conversion_metadata: dict[str, object] | None
     svg_url: str | None = None
+    editable_asset_url: str | None = None
+    editable_asset_media_type: str | None = None
     preview_url: str | None = None
     reviewed_at: datetime | None
     review_note: str | None
@@ -83,10 +95,16 @@ def _response(row: ImplantCatalogImportModel, settings: Settings) -> CatalogImpo
         status=row.status,
         original_filename=row.original_filename,
         source_sha256=row.source_sha256,
+        source_media_type=row.source_media_type,
         source_size_bytes=row.source_size_bytes,
         converter_version=row.converter_version,
         conversion_metadata=row.conversion_metadata,
         svg_url=(storage.create_presigned_get(row.svg_object_key, now).url if row.svg_object_key else None),
+        editable_asset_url=(
+            storage.create_presigned_get(row.editable_asset_object_key, now).url
+            if row.editable_asset_object_key else None
+        ),
+        editable_asset_media_type=row.editable_asset_media_type,
         preview_url=(
             storage.create_presigned_get(row.preview_object_key, now).url if row.preview_object_key else None
         ),
@@ -127,7 +145,7 @@ async def create_import(
     "/imports/{import_id}/source",
     response_model=CatalogImportResponse,
     dependencies=[Depends(get_tenant_context), Depends(require_catalog_admin)],
-    summary="Enviar arquivo DWG original",
+    summary="Enviar arquivo de origem do implante",
 )
 async def upload_source(
     import_id: UUID,
@@ -136,6 +154,7 @@ async def upload_source(
     session: Annotated[AsyncSession, Depends(get_database_session)],
     settings: Annotated[Settings, Depends(get_settings)],
     original_filename: Annotated[str | None, Header(alias="X-Original-Filename")] = None,
+    source_media_type: Annotated[str | None, Header(alias="X-Source-Media-Type")] = None,
 ) -> CatalogImportResponse:
     row = await session.scalar(
         select(ImplantCatalogImportModel).where(
@@ -151,31 +170,40 @@ async def upload_source(
         content_length = int(request.headers.get("content-length", "0") or 0)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Content-Length inválido.") from exc
-    if content_length > MAX_DWG_BYTES:
+    if content_length > MAX_SOURCE_BYTES:
         raise HTTPException(status_code=413, detail="O arquivo excede o limite de 50 MiB.")
     payload = bytearray()
     async for chunk in request.stream():
         payload.extend(chunk)
-        if len(payload) > MAX_DWG_BYTES:
+        if len(payload) > MAX_SOURCE_BYTES:
             raise HTTPException(status_code=413, detail="O arquivo excede o limite de 50 MiB.")
     if not payload:
         raise HTTPException(status_code=400, detail="O arquivo está vazio.")
     data = bytes(payload)
     filename = PurePath((original_filename or "").replace("\\", "/")).name
-    if not filename.lower().endswith((".dwg", ".bak")):
-        raise HTTPException(status_code=415, detail="Envie um arquivo .dwg ou .bak.")
-    if not data.startswith(b"AC10"):
-        raise HTTPException(status_code=422, detail="A assinatura do arquivo não corresponde a DWG.")
+    media_type = (
+        source_media_type or request.headers.get("content-type") or "application/octet-stream"
+    )
+    media_type = media_type.split(";", 1)[0].strip().lower()
+    if len(media_type) > 160 or media_type.count("/") != 1 or any(
+        not part or not part.replace("-", "").replace("+", "").replace(".", "").isalnum()
+        for part in media_type.split("/")
+    ):
+        raise HTTPException(status_code=400, detail="Content-Type de origem inválido.")
     digest = hashlib.sha256(data).hexdigest()
     object_key = f"implant-catalog/source/{row.id}/{uuid4()}-{filename}"
     await _storage(settings).store_object(
-        object_key, data, "application/acad", metadata={"sha256": digest, "import-id": str(row.id)}
+        object_key, data, media_type, metadata={"sha256": digest, "import-id": str(row.id)}
     )
     row.original_filename = filename[:255]
+    row.source_media_type = media_type
     row.source_object_key = object_key
     row.source_sha256 = digest
     row.source_size_bytes = len(data)
-    row.status = "QUEUED" if settings.oda_conversion_service_url else "WAITING_FOR_CONVERTER"
+    converter_configured = bool(
+        settings.implant_catalog_conversion_service_url or settings.oda_conversion_service_url
+    )
+    row.status = "QUEUED" if converter_configured else "WAITING_FOR_CONVERTER"
     row.error_code = None
     await session.flush()
     return _response(row, settings)
@@ -215,7 +243,11 @@ async def approve_import(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> CatalogImportResponse:
     row = await _find_import(session, import_id, context.tenant_id)
-    if row.status != "REVIEW_REQUIRED" or not row.svg_object_key or not row.preview_object_key:
+    if (
+        row.status != "REVIEW_REQUIRED"
+        or not (row.editable_asset_object_key or row.svg_object_key)
+        or not row.preview_object_key
+    ):
         raise HTTPException(status_code=409, detail="A conversão precisa estar pronta para revisão.")
     row.status = "APPROVED"
     row.reviewed_by = context.actor_id
@@ -265,9 +297,12 @@ async def retry_import(
     if row.status != "FAILED" or not row.source_object_key:
         raise HTTPException(
             status_code=409,
-            detail="Somente uma importação com DWG e falha pode ser reenfileirada.",
+            detail="Somente uma importação com arquivo de origem e falha pode ser reenfileirada.",
         )
-    row.status = "QUEUED" if settings.oda_conversion_service_url else "WAITING_FOR_CONVERTER"
+    converter_configured = bool(
+        settings.implant_catalog_conversion_service_url or settings.oda_conversion_service_url
+    )
+    row.status = "QUEUED" if converter_configured else "WAITING_FOR_CONVERTER"
     row.error_code = None
     await session.flush()
     return _response(row, settings)
